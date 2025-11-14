@@ -1,0 +1,21 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# Swift files
+*.swift text eol=lf
+
+# Package files
+Package.swift text eol=lf
+Package.resolved text eol=lf
+
+# Documentation
+*.md text eol=lf
+*.txt text eol=lf
+
+# Git attributes
+.gitattributes text eol=lf
+.gitignore text eol=lf
+
+# License
+LICENSE text eol=lf
+
