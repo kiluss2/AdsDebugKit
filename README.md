@@ -7,7 +7,6 @@ A comprehensive Swift Package Manager library for debugging and monitoring ad ev
 - 📊 **Real-time Ad Event Tracking**: Monitor all ad events (load, show, dismiss, click, etc.) with clean, minimal API
 - 💰 **Revenue Tracking**: Track ad revenue by network and ad unit
 - 📱 **Debug Console UI**: Full-featured debug interface accessible via shake gesture or programmatically
-- 🔄 **Automatic Shake Recovery**: Shake detection automatically recovers after full-screen ads dismiss - no manual intervention needed!
 - 🔍 **Ad State Monitoring**: View load/show states for all ad IDs
 - 📝 **Adjust Logs Integration**: Capture and display Adjust SDK logs (optional)
 - 🎯 **Toast Notifications**: Visual feedback for ad events (optional)
@@ -151,8 +150,7 @@ The debug console can be accessed in multiple ways:
 
 **Option 1: Shake Gesture** (automatically enabled when debug mode is on)
 - Shake your device to toggle the debug console
-- **Automatic Recovery**: `ShakeMonitor` automatically recovers after full-screen ads (interstitial, rewarded, app open) dismiss. No manual intervention needed!
-- The monitor listens to window lifecycle notifications and automatically re-arms shake detection with intelligent backoff timing
+- Uses CoreMotion accelerometer - works reliably even when full-screen ads are shown/dismissed
 
 **Option 2: Programmatically**
 ```swift
@@ -176,11 +174,6 @@ DebugComboGestureHelper().setup(on: iconImageView) {
 }
 ```
 
-**Shake Detection Features:**
-- ✅ **Automatic Recovery**: No need to call `ShakeMonitor.shared.rearm()` manually after ads dismiss
-- ✅ **Smart Backoff**: Uses long backoff (960ms) after disruptive UI changes (interstitial, consent forms, etc.)
-- ✅ **Window Lifecycle Aware**: Monitors window visibility, key status, and scene activation
-- ✅ **Plug-and-Play**: Works with any ad SDK without requiring app code changes
 
 ## API Reference
 
@@ -369,35 +362,22 @@ class AdsDebugWindowManager {
 }
 ```
 
-### ShakeMonitor
+### MotionShakeDetector
 
-Automatic shake gesture detection with intelligent recovery after full-screen ads.
+Robust, window-independent shake detection using CoreMotion accelerometer.
 
 ```swift
-class ShakeMonitor {
-    static let shared: ShakeMonitor
+class MotionShakeDetector {
+    static let shared: MotionShakeDetector
     
-    func start()  // Called automatically when debug mode is enabled
+    func start(handler: @escaping () -> Void)  // Called automatically when debug mode is enabled
     func stop()
-    func rearm()  // Usually not needed - automatic recovery handles this
-    var isEnabled: Bool
 }
 ```
 
 **Features:**
-- ✅ **Automatic Recovery**: No need to call `rearm()` manually - automatically recovers after interstitial/rewarded/app open ads dismiss
-- ✅ **Smart Backoff**: Uses intelligent backoff timing:
-  - Short mode (240ms): For normal window changes
-  - Long mode (960ms): For disruptive UI changes (interstitial, consent forms, etc.)
-- ✅ **Window Lifecycle Aware**: Monitors multiple window events:
-  - `UIWindow.didBecomeKeyNotification`
-  - `UIWindow.didResignKeyNotification`
-  - `UIWindow.didBecomeVisibleNotification`
-  - `UIWindow.didBecomeHiddenNotification`
-  - `UIApplication.didBecomeActiveNotification`
-  - `UIScene.didActivateNotification` (iOS 13+)
-  - `UIScene.willDeactivateNotification` (iOS 13+)
-- ✅ **Plug-and-Play**: Works with any ad SDK without requiring app code changes
+- Uses CoreMotion accelerometer - works reliably even when full-screen ads are shown/dismissed
+- Automatically starts/stops with debug mode
 
 ### DebugComboGestureHelper
 
@@ -565,16 +545,12 @@ To use Adjust SDK:
 
 7. **Limit Events**: Adjust `keepEvents` based on your needs (default 200 is usually sufficient)
 
-8. **No Manual Shake Recovery**: Don't call `ShakeMonitor.shared.rearm()` manually - the library handles this automatically via window lifecycle notifications
-
 ## Troubleshooting
 
 ### Debug Console Not Showing
 
 - Ensure `AdTelemetry.initialize()` is called
 - Check that debug mode is enabled: `AdTelemetry.isDebugEnabled()`
-- Verify shake gesture is working (check ShakeMonitor)
-- **After Full-Screen Ads**: Shake detection automatically recovers within ~1 second. If it doesn't work immediately after ad dismiss, wait a moment and try again
 
 ### Events Not Logging
 
@@ -589,14 +565,10 @@ To use Adjust SDK:
 - Check that ad ID exists in `getAllAdIDs()` closure
 - Verify configuration is set correctly
 
-### Shake Gesture Not Working After Ad Dismiss
+### Shake Gesture Not Working
 
-- **This should be automatic!** `ShakeMonitor` listens to window lifecycle notifications and auto-recovers
-- If issues persist:
-  - Check that `ShakeMonitor` is started (happens automatically when debug mode is enabled)
-  - Verify window notifications are being fired (check with breakpoints)
-  - On very slow devices, recovery may take up to 1 second - wait and try again
-  - If needed, you can manually call `ShakeMonitor.shared.rearm()`, but this should rarely be necessary
+- Check that debug mode is enabled: `AdTelemetry.isDebugEnabled()`
+- Try shaking more vigorously
 
 ## License
 

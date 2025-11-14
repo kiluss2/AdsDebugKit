@@ -94,10 +94,12 @@ public final class AdTelemetry {
         
         if enabled {
             AdjustLogTap.shared.start()
-            ShakeMonitor.shared.start()
+            MotionShakeDetector.shared.start {
+                AdsDebugWindowManager.shared.toggle()
+            }
         } else {
             AdjustLogTap.shared.stop()
-            ShakeMonitor.shared.stop()
+            MotionShakeDetector.shared.stop()
         }
     }
     
@@ -106,7 +108,9 @@ public final class AdTelemetry {
     private func startDebugServicesIfNeeded() {
         guard AdTelemetry.isDebugEnabled() else { return }
         AdjustLogTap.shared.start()
-        ShakeMonitor.shared.start()
+        MotionShakeDetector.shared.start {
+            AdsDebugWindowManager.shared.toggle()
+        }
     }
     
     public func log(_ e: AdEvent) {

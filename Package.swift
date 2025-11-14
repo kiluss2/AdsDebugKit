@@ -23,9 +23,7 @@ let package = Package(
         // Targets can depend on other targets in this package and products from dependencies.
         .target(
             name: "AdsDebugKit",
-            dependencies: [
-                .product(name: "GoogleMobileAds", package: "swift-package-manager-google-mobile-ads"),
-            ],
+            dependencies: [],
             path: "Sources/AdsDebugKit"
         ),
         .testTarget(
