@@ -8,8 +8,8 @@
 import CoreMotion
 import UIKit
 
-public final class ProperShakeDetector {
-    public static let shared = ProperShakeDetector()
+public final class MotionShakeDetector {
+    public static let shared = MotionShakeDetector()
     private let motion = CMMotionManager()
     private var handler: (() -> Void)?
 
