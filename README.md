@@ -1,6 +1,6 @@
 # AdsDebugKit
 
-A lightweight Swift Package Manager (SPM) library for debugging and monitoring ad events, revenue, and states in iOS applications. It also provides a built-in debug console UI for real-time tracking.
+A lightweight Swift Package Manager (SPM) library for detaily debugging and monitoring ad events, revenue, and states in iOS applications. It also provides a built-in debug console UI for real-time tracking.
 
 ## Requirements
 
@@ -23,13 +23,13 @@ A lightweight Swift Package Manager (SPM) library for debugging and monitoring a
 1. Go to File → Add Package Dependencies...
 2. Paste the repository URL:  
    `https://github.com/kiluss2/AdsDebugKit.git`
-3. Select the version (for example: from: `"latest-version"`) and add AdsDebugKit to your app target.
+3. Select the version (for example: from: `"1.0.0"`) and add AdsDebugKit to your app target.
 
 ### Package.swift
 
 ```swift
 dependencies: [
-  .package(url: "https://github.com/kiluss2/AdsDebugKit.git", from: "1.0.0")
+  .package(url: "https://github.com/kiluss2/AdsDebugKit.git", from: "latest-version")
 ]
 ```
 
