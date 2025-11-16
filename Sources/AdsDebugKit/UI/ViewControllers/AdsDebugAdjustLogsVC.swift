@@ -89,4 +89,3 @@ final class AdsDebugAdjustLogsVC: UIViewController, UITableViewDataSource, UITab
         tableView.deselectRow(at: indexPath, animated: true)
     }
 }
-

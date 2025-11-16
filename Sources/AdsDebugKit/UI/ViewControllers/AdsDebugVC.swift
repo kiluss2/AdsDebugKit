@@ -144,5 +144,3 @@ extension AdsDebugVC: UIPageViewControllerDataSource, UIPageViewControllerDelega
         }
     }
 }
-
-

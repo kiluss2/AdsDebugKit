@@ -157,5 +157,3 @@ final class AdjustLogTap {
         }
     }
 }
-
-

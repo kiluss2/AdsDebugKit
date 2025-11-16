@@ -97,5 +97,3 @@ extension AdsDebugWindowManager: UIAdaptivePresentationControllerDelegate {
         tearDownWindow()
     }
 }
-
-
