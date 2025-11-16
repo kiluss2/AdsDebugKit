@@ -72,18 +72,11 @@ func application(
 ) -> Bool {
   let config = AdTelemetryConfiguration(
     // Provide all your ad IDs
-    getAllAdIDs: { AdvertisementID.allCases },
-    // (Optional) Logic to extract an AdID from a native ad object
-    getNativeAdSlotId: { nativeAd in
-      return nil
-    },
-    // (Optional) Default ID for native ads
-    defaultNativeAdID: AdvertisementID.banner
+    allAdIDs: { AdvertisementID.allCases }
   )
 
-  AdTelemetry.shared.configure(config)
   // Initialize (auto-starts if debug mode was previously enabled)
-  AdTelemetry.initialize()
+  AdTelemetry.initialize(config)
 
   return true
 }

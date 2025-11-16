@@ -32,7 +32,7 @@ final class AdsDebugVC: UIViewController {
         segmentedControl.translatesAutoresizingMaskIntoConstraints = false
         container.addSubview(segmentedControl)
         NSLayoutConstraint.activate([
-            segmentedControl.topAnchor.constraint(equalTo: container.topAnchor, constant: 8),
+            segmentedControl.topAnchor.constraint(equalTo: container.topAnchor, constant: 16),
             segmentedControl.leadingAnchor.constraint(equalTo: container.leadingAnchor),
             segmentedControl.trailingAnchor.constraint(equalTo: container.trailingAnchor),
             segmentedControl.bottomAnchor.constraint(equalTo: container.bottomAnchor)
@@ -40,12 +40,12 @@ final class AdsDebugVC: UIViewController {
         
         navigationItem.titleView = container
         
-        navigationItem.rightBarButtonItem = UIBarButtonItem(
-            title: "Close",
-            style: .done,
-            target: self,
-            action: #selector(closeTap)
-        )
+//        navigationItem.rightBarButtonItem = UIBarButtonItem(
+//            title: "Close",
+//            style: .done,
+//            target: self,
+//            action: #selector(closeTap)
+//        )
         
         // Setup page view controller
         pageVC.dataSource = self
@@ -144,5 +144,3 @@ extension AdsDebugVC: UIPageViewControllerDataSource, UIPageViewControllerDelega
         }
     }
 }
-
-

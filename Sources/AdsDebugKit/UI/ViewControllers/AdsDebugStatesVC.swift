@@ -98,5 +98,3 @@ final class AdsDebugStatesVC: UIViewController, UITableViewDataSource {
         return "All IDs"
     }
 }
-
-

@@ -106,5 +106,3 @@ final class AdsDebugSettingsVC: UIViewController, UITableViewDataSource, UITable
         AdTelemetry.shared.settings = s
     }
 }
-
-

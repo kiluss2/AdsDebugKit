@@ -25,22 +25,9 @@ public struct AdTelemetryConfiguration {
     /// Closure to get all available ad IDs
     public let getAllAdIDs: () -> [any AdIDProvider]
     
-    /// Closure to extract ad ID from a native ad object
-    /// Returns nil if ad ID cannot be extracted
-    public let getNativeAdSlotId: (Any) -> (any AdIDProvider)?
-    
-    /// Default ad ID to use when slot ID cannot be extracted from native ad
-    public let defaultNativeAdID: any AdIDProvider
-    
     public init(
-        getAllAdIDs: @escaping () -> [any AdIDProvider],
-        getNativeAdSlotId: @escaping (Any) -> (any AdIDProvider)?,
-        defaultNativeAdID: any AdIDProvider
+        allAdIDs: @escaping () -> [any AdIDProvider]
     ) {
-        self.getAllAdIDs = getAllAdIDs
-        self.getNativeAdSlotId = getNativeAdSlotId
-        self.defaultNativeAdID = defaultNativeAdID
+        self.getAllAdIDs = allAdIDs
     }
 }
-
-

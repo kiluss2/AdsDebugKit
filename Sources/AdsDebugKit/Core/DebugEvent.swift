@@ -133,25 +133,12 @@ public struct AdStateInfo: Codable {
     public let showState: AdShowState
     public var revenueUSD: Double
     
-    /// Create from AdIDProvider
-    public init(adId: any AdIDProvider, loadState: AdLoadState, showState: AdShowState, revenueUSD: Double) {
-        self.adIdName = adId.name
-        self.loadState = loadState
-        self.showState = showState
-        self.revenueUSD = revenueUSD
-    }
-    
     /// Create directly from adIdName (internal use)
     internal init(adIdName: String, loadState: AdLoadState, showState: AdShowState, revenueUSD: Double) {
         self.adIdName = adIdName
         self.loadState = loadState
         self.showState = showState
         self.revenueUSD = revenueUSD
-    }
-    
-    /// Get the ad ID from configuration if available
-    public func getAdID(from config: AdTelemetryConfiguration) -> (any AdIDProvider)? {
-        return config.getAllAdIDs().first { $0.name == adIdName }
     }
 }
 
@@ -190,12 +177,6 @@ public struct AdEvent: Codable {
         self.precision = precision
         self.error = error
     }
-    
-    /// Get the ad ID from configuration if available
-    public func getAdID(from config: AdTelemetryConfiguration) -> (any AdIDProvider)? {
-        guard let name = adIdName else { return nil }
-        return config.getAllAdIDs().first { $0.name == name }
-    }
 }
 
 /// Revenue event with optional ad ID stored as string
@@ -227,11 +208,4 @@ public struct RevenueEvent: Codable {
         self.valueUSD = valueUSD
         self.precision = precision
     }
-    
-    /// Get the ad ID from configuration if available
-    public func getAdID(from config: AdTelemetryConfiguration) -> (any AdIDProvider)? {
-        guard let name = adIdName else { return nil }
-        return config.getAllAdIDs().first { $0.name == name }
-    }
 }
-

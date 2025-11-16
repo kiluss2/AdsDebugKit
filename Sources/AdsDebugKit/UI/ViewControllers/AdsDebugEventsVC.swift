@@ -116,5 +116,3 @@ final class AdsDebugEventsVC: UIViewController, UITableViewDataSource, UITableVi
         tableView.deselectRow(at: indexPath, animated: true)
     }
 }
-
-

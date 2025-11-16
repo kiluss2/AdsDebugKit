@@ -9,24 +9,13 @@ import UIKit
 import Foundation
 
 public final class AdTelemetry {
-    public static let shared = AdTelemetry()
+    // MARK: - Singleton
     
-    private var configuration: AdTelemetryConfiguration?
+    public static let shared = AdTelemetry()
     
     private init() {}
     
-    /// Configure AdTelemetry with app-specific ad ID provider
-    /// Must be called before using AdTelemetry
-    public func configure(_ config: AdTelemetryConfiguration) {
-        configuration = config
-    }
-    
-    /// Initialize AdTelemetry (triggers singleton initialization and auto-starts debug services if enabled)
-    /// Call this early in app lifecycle (e.g., in AppDelegate.didFinishLaunchingWithOptions)
-    public static func initialize() {
-        _ = shared
-        shared.startDebugServicesIfNeeded()
-    }
+    // MARK: - Settings
     
     public struct Settings: Codable {
         public var debugEnabled: Bool = false
@@ -40,13 +29,25 @@ public final class AdTelemetry {
         }
     }
     
+    // MARK: - Properties
+    
+    // Configuration
+    private var configuration: AdTelemetryConfiguration?
+    
+    // Queue for thread-safe operations
     private let q = DispatchQueue(label: "telemetry.ads.q")
+    
+    // Data storage
     public private(set) var events: [AdEvent] = []
     public private(set) var revenues: [RevenueEvent] = []
     // Store ad states by ad ID name (string) for Codable compatibility
     private var adStates: [String: AdStateInfo] = [:]
     private var _debugLines: [String] = []
+    
+    // UserDefaults
     private let udKey = "telemetry.ads.settings"
+    
+    // Formatters
     // Timestamp formatter (created once and used on the source queue/main thread only)
     private lazy var timeFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -54,6 +55,24 @@ public final class AdTelemetry {
         f.dateFormat = "HH:mm:ss.ssss"
         return f
     }()
+    
+    // MARK: - Initialization
+    
+    /// Initialize AdTelemetry (triggers singleton initialization and auto-starts debug services if enabled)
+    /// Call this early in app lifecycle (e.g., in AppDelegate.didFinishLaunchingWithOptions)
+    public static func initialize(_ config: AdTelemetryConfiguration) {
+        _ = shared
+        shared.configure(config)
+        shared.startDebugServicesIfNeeded()
+    }
+    
+    /// Configure AdTelemetry with app-specific ad ID provider
+    /// Must be called before using AdTelemetry
+    private func configure(_ config: AdTelemetryConfiguration) {
+        configuration = config
+    }
+    
+    // MARK: - Settings Management
     
     public var settings: Settings {
         get {
@@ -113,6 +132,8 @@ public final class AdTelemetry {
         }
     }
     
+    // MARK: - Public API: Event Logging
+    
     public func log(_ e: AdEvent) {
         guard AdTelemetry.isDebugEnabled() else { return }
         
@@ -132,6 +153,8 @@ public final class AdTelemetry {
         }
     }
     
+    // MARK: - Public API: Revenue
+    
     public func logRevenue(_ r: RevenueEvent) {
         guard AdTelemetry.isDebugEnabled() else { return }
         
@@ -148,6 +171,8 @@ public final class AdTelemetry {
                 }
             }
         }
+        
+        addRevenue(for: r.adIdName, valueUSD: r.valueUSD)
     }
     
     public func totalRevenueUSD() -> Double {
@@ -164,6 +189,50 @@ public final class AdTelemetry {
             return dict.sorted { $0.value > $1.value }
         }
     }
+    
+    // MARK: - Public API: Ad States
+    
+    /// Get current ad states (thread-safe)
+    /// Returns states for all configured ad IDs
+    public func getAdStates() -> [AdStateInfo] {
+        guard let config = configuration else {
+            return []
+        }
+        
+        return q.sync {
+            // Initialize states for all ad IDs if not exists
+            let allAdIds = config.getAllAdIDs()
+            for adId in allAdIds {
+                let adIdName = adId.name
+                if adStates[adIdName] == nil {
+                    adStates[adIdName] = AdStateInfo(adIdName: adIdName, loadState: .notLoad, showState: .no, revenueUSD: 0)
+                }
+            }
+            return allAdIds.compactMap { adStates[$0.name] }
+        }
+    }
+    
+    // MARK: - Public API: Debug Logs
+    
+    public func logDebugLine(_ s: String) {
+        q.async {
+            let line = "[\(self.timeFormatter.string(from: Date()))] \(s)"
+            // Insert at beginning for newest-first order
+            self._debugLines.insert(line, at: 0)
+            // Keep only the first keepEvents lines (newest) to save memory
+            let k = self.settings.keepEvents
+            if self._debugLines.count > k {
+                self._debugLines.removeLast(self._debugLines.count - k)
+            }
+            self.notify()
+        }
+    }
+    
+    public var debugLines: [String] {
+        return q.sync { _debugLines }
+    }
+    
+    // MARK: - Private Helpers
     
     private func trim() {
         let k = settings.keepEvents
@@ -182,40 +251,14 @@ public final class AdTelemetry {
         }
     }
     
-    /// Get current ad states (thread-safe)
-    /// Returns states for all configured ad IDs
-    public func getAdStates() -> [AdStateInfo] {
-        guard let config = configuration else {
-            return []
-        }
-        
-        return q.sync {
-            // Initialize states for all ad IDs if not exists
-            let allAdIds = config.getAllAdIDs()
-            for adId in allAdIds {
-                let adIdName = adId.name
-                if adStates[adIdName] == nil {
-                    adStates[adIdName] = AdStateInfo(adId: adId, loadState: .notLoad, showState: .no, revenueUSD: 0)
-                }
-            }
-            return allAdIds.compactMap { adStates[$0.name] }
-        }
-    }
-    
     /// Update ad state when a new event is logged
     private func updateAdState(for event: AdEvent) {
-        guard let adIdName = event.adIdName else { return }
+        guard let adIdName = event.adIdName, configuration != nil else { return }
         
         // Initialize if not exists
         if adStates[adIdName] == nil {
             // Try to get the ad ID from configuration
-            if let config = configuration,
-               let adId = config.getAllAdIDs().first(where: { $0.name == adIdName }) {
-                adStates[adIdName] = AdStateInfo(adId: adId, loadState: .notLoad, showState: .no, revenueUSD: 0)
-            } else {
-                // Can't create state without configuration, skip
-                return
-            }
+            adStates[adIdName] = AdStateInfo(adIdName: adIdName, loadState: .notLoad, showState: .no, revenueUSD: 0)
         }
         
         guard var currentState = adStates[adIdName] else { return }
@@ -246,7 +289,7 @@ public final class AdTelemetry {
                 showState: currentState.showState,
                 revenueUSD: currentState.revenueUSD
             )
-        case .showStart, .showSuccess:
+        case .showStart, .showSuccess, .impression:
             currentState = AdStateInfo(
                 adIdName: adIdName,
                 loadState: currentState.loadState,
@@ -260,33 +303,11 @@ public final class AdTelemetry {
         adStates[adIdName] = currentState
     }
     
-    // MARK: - Debug Logs
-    
-    public func logDebugLine(_ s: String) {
+    private func addRevenue(for adIdName: String?, valueUSD: Double) {
+        guard let adIdName = adIdName else { return }
         q.async {
-            let line = "[\(self.timeFormatter.string(from: Date()))] \(s)"
-            // Insert at beginning for newest-first order
-            self._debugLines.insert(line, at: 0)
-            // Keep only the first keepEvents lines (newest) to save memory
-            let k = self.settings.keepEvents
-            if self._debugLines.count > k {
-                self._debugLines.removeLast(self._debugLines.count - k)
-            }
-            self.notify()
-        }
-    }
-    
-    public var debugLines: [String] {
-        return q.sync { _debugLines }
-    }
-    
-    // MARK: - Revenue Tracking
-    
-    public func addRevenue(for adId: any AdIDProvider, valueUSD: Double) {
-        q.async {
-            let adIdName = adId.name
             if self.adStates[adIdName] == nil {
-                self.adStates[adIdName] = AdStateInfo(adId: adId, loadState: .notLoad, showState: .no, revenueUSD: 0)
+                self.adStates[adIdName] = AdStateInfo(adIdName: adIdName, loadState: .notLoad, showState: .no, revenueUSD: 0)
             }
             
             guard var currentState = self.adStates[adIdName] else { return }
@@ -299,53 +320,6 @@ public final class AdTelemetry {
 
 extension Notification.Name {
     public static let adTelemetryUpdated = Notification.Name("adTelemetryUpdated")
-}
-
-// MARK: - Helper for Native Ad Display
-
-extension AdTelemetry {
-    /// Log showStart and showSuccess for native ad when it's displayed
-    /// Uses configuration to extract ad ID from native ad object
-    /// - Parameters:
-    ///   - nativeAd: The native ad object (can be any type, configuration will extract ID)
-    ///   - network: Optional network name
-    ///   - lineItem: Optional line item name
-    public static func logNativeAdDisplay(
-        _ nativeAd: Any,
-        network: String? = nil,
-        lineItem: String? = nil
-    ) {
-        guard let config = shared.configuration else {
-            return
-        }
-        
-        // Try to get adId from nativeAd using configuration
-        let slotId = config.getNativeAdSlotId(nativeAd) ?? config.defaultNativeAdID
-        
-        shared.log(AdEvent(
-            time: Date(),
-            unit: .native,
-            action: .showStart,
-            adId: slotId,
-            network: network,
-            lineItem: lineItem,
-            eCPM: nil,
-            precision: nil,
-            error: nil
-        ))
-        
-        shared.log(AdEvent(
-            time: Date(),
-            unit: .native,
-            action: .showSuccess,
-            adId: slotId,
-            network: network,
-            lineItem: lineItem,
-            eCPM: nil,
-            precision: nil,
-            error: nil
-        ))
-    }
 }
 
 // MARK: - Toast (stacked)
@@ -499,5 +473,3 @@ final class PaddingLabel: UILabel {
                       height: s.height + inset.top + inset.bottom)
     }
 }
-
-
