@@ -23,7 +23,7 @@ A lightweight Swift Package Manager (SPM) library for debugging and monitoring a
 1. Go to File → Add Package Dependencies...
 2. Paste the repository URL:  
    `https://github.com/kiluss2/AdsDebugKit.git`
-3. Select the version (for example: from: `"1.0.0"`) and add AdsDebugKit to your app target.
+3. Select the version (for example: from: `"latest-version"`) and add AdsDebugKit to your app target.
 
 ### Package.swift
 
