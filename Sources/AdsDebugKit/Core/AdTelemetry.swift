@@ -64,6 +64,8 @@ public final class AdTelemetry {
         _ = shared
         shared.configure(config)
         shared.startDebugServicesIfNeeded()
+        // Enable automatic viewWillAppear logging for all view controllers
+        UIViewController.enableAutoViewAppearLogging()
     }
     
     /// Configure AdTelemetry with app-specific ad ID provider
