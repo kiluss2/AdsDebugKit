@@ -21,7 +21,7 @@ public final class DebugComboGestureHelper: NSObject {
     
     // MARK: - Properties
     
-    private weak var targetView: UIImageView?
+    private weak var targetView: UIView?
     private var comboState: ComboState = .idle
     private var comboStartTime: Date?
     private var comboTimer: Timer?
@@ -38,42 +38,42 @@ public final class DebugComboGestureHelper: NSObject {
     // Completion callback
     private var onComboCompleted: (() -> Void)?
     
-    // Associated object key for storing helper in imageView
+    // Associated object key for storing helper in unlockView
     private static var helperKey: UInt8 = 0
     
     // MARK: - Public Methods
     
-    /// Setup debug combo gesture on the given image view
-    /// Helper is automatically stored in imageView's associated object
+    /// Setup debug combo gesture on the given  view
+    /// Helper is automatically stored in view's associated object
     /// - Parameters:
-    ///   - imageView: The image view to attach gestures to
+    ///   - unlockView: The view to attach gestures to
     ///   - completion: Callback when combo is completed successfully
-    public func setup(on imageView: UIImageView, completion: @escaping () -> Void) {
+    public func setup(on unlockView: UIView, completion: @escaping () -> Void) {
         // Cleanup previous setup if any
-        if let existing = objc_getAssociatedObject(imageView, &Self.helperKey) as? DebugComboGestureHelper {
+        if let existing = objc_getAssociatedObject(unlockView, &Self.helperKey) as? DebugComboGestureHelper {
             existing.cleanup()
         }
         
-        // Store self in imageView's associated object to prevent deallocation
-        objc_setAssociatedObject(imageView, &Self.helperKey, self, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+        // Store self in unlockView's associated object to prevent deallocation
+        objc_setAssociatedObject(unlockView, &Self.helperKey, self, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
         
-        targetView = imageView
+        targetView = unlockView
         onComboCompleted = completion
         
         // Enable user interaction
-        imageView.isUserInteractionEnabled = true
+        unlockView.isUserInteractionEnabled = true
         
         // Pan gesture for swipe down/up
         let pan = UIPanGestureRecognizer(target: self, action: #selector(handlePan(_:)))
         pan.delegate = self
-        imageView.addGestureRecognizer(pan)
+        unlockView.addGestureRecognizer(pan)
         panGesture = pan
         
         // Double tap gesture
         let doubleTap = UITapGestureRecognizer(target: self, action: #selector(handleDoubleTap))
         doubleTap.numberOfTapsRequired = 2
         doubleTap.delegate = self
-        imageView.addGestureRecognizer(doubleTap)
+        unlockView.addGestureRecognizer(doubleTap)
         doubleTapGesture = doubleTap
     }
     
@@ -90,8 +90,8 @@ public final class DebugComboGestureHelper: NSObject {
         }
         
         // Remove from associated object
-        if let imageView = targetView {
-            objc_setAssociatedObject(imageView, &Self.helperKey, nil, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
+        if let unlockView = targetView {
+            objc_setAssociatedObject(unlockView, &Self.helperKey, nil, .OBJC_ASSOCIATION_RETAIN_NONATOMIC)
         }
         
         panGesture = nil
