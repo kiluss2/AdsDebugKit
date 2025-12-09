@@ -59,11 +59,34 @@ final class AdsDebugStatesVC: UIViewController, UITableViewDataSource {
         
         c.textLabel?.text = state.adIdName
         
+        // Build load status string with counts
+        var loadText = state.loadState.rawValue
+        var loadColor: UIColor = .systemGray
+        if state.loadState == .loading {
+            loadColor = state.loadState == .loading ? .systemOrange : .systemGray
+        } else if state.loadState == .success {
+            loadText += "(\(state.successCount))"
+            loadColor = .systemGreen
+        } else if state.loadState == .failed {
+            if state.failedCount > 0 { loadText += "(\(state.failedCount))" }
+        }
+        
+        // Build show status string with count
+        let showText: String
+        let showColor: UIColor?
+        if state.showedCount > 0 {
+            showText = "\(state.showedCount)"
+            showColor = .systemGreen
+        } else {
+            showText = "No"
+            showColor = .systemGray
+        }
+        
         // Build details as a list of tuples: (label, value, colorForValue)
         // Only the value part will be colored, not the label
         let details: [(String, String, UIColor?)] = [
-            ("Load: ", state.loadState.rawValue, state.loadState == .success ? .systemGreen : .systemGray),
-            ("Show: ", state.showState.rawValue, state.showState == .showed ? .systemGreen : .systemGray),
+            ("Load: ", loadText, loadColor),
+            ("Show/impression: ", showText, showColor),
             ("Rev: ", String(format: "$%.4f", state.revenueUSD), state.revenueUSD > 0 ? .systemYellow : nil)
         ]
 

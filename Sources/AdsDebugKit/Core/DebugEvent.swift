@@ -133,12 +133,28 @@ public struct AdStateInfo: Codable {
     public let showState: AdShowState
     public var revenueUSD: Double
     
+    // Counters for tracking
+    public var successCount: Int
+    public var failedCount: Int
+    public var showedCount: Int
+    
     /// Create directly from adIdName (internal use)
-    internal init(adIdName: String, loadState: AdLoadState, showState: AdShowState, revenueUSD: Double) {
+    internal init(
+        adIdName: String,
+        loadState: AdLoadState,
+        showState: AdShowState,
+        revenueUSD: Double,
+        successCount: Int = 0,
+        failedCount: Int = 0,
+        showedCount: Int = 0
+    ) {
         self.adIdName = adIdName
         self.loadState = loadState
         self.showState = showState
         self.revenueUSD = revenueUSD
+        self.successCount = successCount
+        self.failedCount = failedCount
+        self.showedCount = showedCount
     }
 }
 

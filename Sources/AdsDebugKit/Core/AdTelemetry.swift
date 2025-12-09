@@ -205,7 +205,15 @@ public final class AdTelemetry {
             for adId in allAdIds {
                 let adIdName = adId.name
                 if adStates[adIdName] == nil {
-                    adStates[adIdName] = AdStateInfo(adIdName: adIdName, loadState: .notLoad, showState: .no, revenueUSD: 0)
+                    adStates[adIdName] = AdStateInfo(
+                        adIdName: adIdName,
+                        loadState: .notLoad,
+                        showState: .no,
+                        revenueUSD: 0,
+                        successCount: 0,
+                        failedCount: 0,
+                        showedCount: 0
+                    )
                 }
             }
             return allAdIds.compactMap { adStates[$0.name] }
@@ -258,12 +266,20 @@ public final class AdTelemetry {
         // Initialize if not exists
         if adStates[adIdName] == nil {
             // Try to get the ad ID from configuration
-            adStates[adIdName] = AdStateInfo(adIdName: adIdName, loadState: .notLoad, showState: .no, revenueUSD: 0)
+            adStates[adIdName] = AdStateInfo(
+                adIdName: adIdName,
+                loadState: .notLoad,
+                showState: .no,
+                revenueUSD: 0,
+                successCount: 0,
+                failedCount: 0,
+                showedCount: 0
+            )
         }
         
         guard var currentState = adStates[adIdName] else { return }
         
-        // Update load state based on event action
+        // Update load state and counters based on event action
         switch event.action {
         case .loadStart:
             // Only set loading if current state is notLoad or failed
@@ -272,7 +288,10 @@ public final class AdTelemetry {
                     adIdName: adIdName,
                     loadState: .loading,
                     showState: currentState.showState,
-                    revenueUSD: currentState.revenueUSD
+                    revenueUSD: currentState.revenueUSD,
+                    successCount: currentState.successCount,
+                    failedCount: currentState.failedCount,
+                    showedCount: currentState.showedCount
                 )
             }
         case .loadSuccess:
@@ -280,21 +299,40 @@ public final class AdTelemetry {
                 adIdName: adIdName,
                 loadState: .success,
                 showState: currentState.showState,
-                revenueUSD: currentState.revenueUSD
+                revenueUSD: currentState.revenueUSD,
+                successCount: currentState.successCount + 1,  // Increment success
+                failedCount: currentState.failedCount,
+                showedCount: currentState.showedCount
             )
         case .loadFail:
             currentState = AdStateInfo(
                 adIdName: adIdName,
                 loadState: .failed,
                 showState: currentState.showState,
-                revenueUSD: currentState.revenueUSD
+                revenueUSD: currentState.revenueUSD,
+                successCount: currentState.successCount,
+                failedCount: currentState.failedCount + 1,  // Increment failed
+                showedCount: currentState.showedCount
             )
-        case .showStart, .showSuccess, .impression:
+        case .showStart:
             currentState = AdStateInfo(
                 adIdName: adIdName,
                 loadState: currentState.loadState,
                 showState: .showed,
-                revenueUSD: currentState.revenueUSD
+                revenueUSD: currentState.revenueUSD,
+                successCount: currentState.successCount,
+                failedCount: currentState.failedCount,
+                showedCount: currentState.showedCount
+            )
+        case .showSuccess, .impression:
+            currentState = AdStateInfo(
+                adIdName: adIdName,
+                loadState: currentState.loadState,
+                showState: .showed,
+                revenueUSD: currentState.revenueUSD,
+                successCount: currentState.successCount,
+                failedCount: currentState.failedCount,
+                showedCount: currentState.showedCount + 1  // Increment showed
             )
         default:
             break
@@ -307,11 +345,27 @@ public final class AdTelemetry {
         guard let adIdName = adIdName else { return }
         q.async {
             if self.adStates[adIdName] == nil {
-                self.adStates[adIdName] = AdStateInfo(adIdName: adIdName, loadState: .notLoad, showState: .no, revenueUSD: 0)
+                self.adStates[adIdName] = AdStateInfo(
+                    adIdName: adIdName,
+                    loadState: .notLoad,
+                    showState: .no,
+                    revenueUSD: 0,
+                    successCount: 0,
+                    failedCount: 0,
+                    showedCount: 0
+                )
             }
             
             guard var currentState = self.adStates[adIdName] else { return }
-            currentState.revenueUSD += valueUSD
+            currentState = AdStateInfo(
+                adIdName: adIdName,
+                loadState: currentState.loadState,
+                showState: currentState.showState,
+                revenueUSD: currentState.revenueUSD + valueUSD,
+                successCount: currentState.successCount,
+                failedCount: currentState.failedCount,
+                showedCount: currentState.showedCount
+            )
             self.adStates[adIdName] = currentState
             self.notify()
         }
