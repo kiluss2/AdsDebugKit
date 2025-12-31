@@ -129,6 +129,7 @@ public enum AdShowState: String, Codable {
 public struct AdStateInfo: Codable {
     /// Ad ID name (rawValue from AdIDProvider)
     public let adIdName: String
+    public let adId: String
     public let loadState: AdLoadState
     public let showState: AdShowState
     public var revenueUSD: Double
@@ -141,6 +142,7 @@ public struct AdStateInfo: Codable {
     /// Create directly from adIdName (internal use)
     internal init(
         adIdName: String,
+        adId: String,
         loadState: AdLoadState,
         showState: AdShowState,
         revenueUSD: Double,
@@ -149,6 +151,7 @@ public struct AdStateInfo: Codable {
         showedCount: Int = 0
     ) {
         self.adIdName = adIdName
+        self.adId = adId
         self.loadState = loadState
         self.showState = showState
         self.revenueUSD = revenueUSD
@@ -165,6 +168,7 @@ public struct AdEvent: Codable {
     public let action: AdAction
     /// Ad ID name (rawValue from AdIDProvider), nil if not available
     public let adIdName: String?
+    public let adId: String?
     public let network: String?
     public let lineItem: String?
     public let eCPM: Double?
@@ -187,6 +191,7 @@ public struct AdEvent: Codable {
         self.unit = unit
         self.action = action
         self.adIdName = adId?.name
+        self.adId = adId?.id
         self.network = network
         self.lineItem = lineItem
         self.eCPM = eCPM
@@ -201,6 +206,7 @@ public struct RevenueEvent: Codable {
     public let unit: AdUnitKind
     /// Ad ID name (rawValue from AdIDProvider), nil if not available
     public let adIdName: String?
+    public let adId: String?
     public let network: String?
     public let lineItem: String?
     public let valueUSD: Double
@@ -219,6 +225,7 @@ public struct RevenueEvent: Codable {
         self.time = time
         self.unit = unit
         self.adIdName = adId?.name
+        self.adId = adId?.id
         self.network = network
         self.lineItem = lineItem
         self.valueUSD = valueUSD

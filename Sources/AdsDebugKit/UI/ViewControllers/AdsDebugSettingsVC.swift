@@ -73,7 +73,7 @@ final class AdsDebugSettingsVC: UIViewController, UITableViewDataSource, UITable
         alert.addTextField { textField in
             textField.keyboardType = .numberPad
             textField.text = "\(AdTelemetry.shared.settings.keepEvents)"
-            textField.placeholder = "200"
+            textField.placeholder = "\(AdTelemetry.shared.settings.keepEvents)"
         }
         
         alert.addAction(UIAlertAction(title: "Cancel", style: .cancel))

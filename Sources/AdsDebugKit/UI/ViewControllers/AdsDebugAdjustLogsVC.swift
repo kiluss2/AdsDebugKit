@@ -36,13 +36,6 @@ final class AdsDebugAdjustLogsVC: UIViewController, UITableViewDataSource, UITab
             name: .adTelemetryUpdated,
             object: nil
         )
-        
-        // Get ADID when opening Adjust Logs page (if Adjust SDK is available)
-        #if canImport(AdjustSdk)
-        Adjust.adid { adid in
-            AdTelemetry.shared.logDebugLine("[ADID] \(adid ?? "nil")")
-        }
-        #endif
     }
     
     @objc private func reload() {

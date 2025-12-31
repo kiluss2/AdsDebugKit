@@ -49,15 +49,25 @@ final class AdsDebugStatesVC: UIViewController, UITableViewDataSource {
     }
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
-        let c = UITableViewCell(style: .subtitle, reuseIdentifier: nil)
-        c.selectionStyle = .none
+        let cell = UITableViewCell(style: .subtitle, reuseIdentifier: nil)
+        cell.selectionStyle = .none
         
         let states = getAdStates()
-        guard indexPath.row < states.count else { return c }
+        guard indexPath.row < states.count else { return cell }
         
         let state = states[indexPath.row]
-        
-        c.textLabel?.text = state.adIdName
+        let titleText = NSMutableAttributedString(string: state.adIdName)
+        titleText.append(
+            NSAttributedString(
+                string: "\n\(state.adId)",
+                attributes: [
+                    NSAttributedString.Key.font: UIFont.systemFont(ofSize: 10),
+                    NSAttributedString.Key.foregroundColor: UIColor.systemGray,
+                ]
+            )
+        )
+        cell.textLabel?.attributedText = titleText
+        cell.textLabel?.numberOfLines = 0
         
         // Build load status string with counts
         var loadText = state.loadState.rawValue
@@ -99,22 +109,23 @@ final class AdsDebugStatesVC: UIViewController, UITableViewDataSource {
             let valueAttributes = item.2.map { [NSAttributedString.Key.foregroundColor: $0] }
             detailText.append(NSAttributedString(string: item.1, attributes: valueAttributes))
         }
-        c.detailTextLabel?.attributedText = detailText
-        c.detailTextLabel?.numberOfLines = 3
+        cell.detailTextLabel?.attributedText = detailText
+        cell.detailTextLabel?.numberOfLines = 3
+        cell.detailTextLabel?.font = UIFont.systemFont(ofSize: 12)
         
         // Color coding for load state
         switch state.loadState {
         case .success:
-            c.textLabel?.textColor = .systemGreen
+            cell.textLabel?.textColor = .systemGreen
         case .failed:
-            c.textLabel?.textColor = .systemRed
+            cell.textLabel?.textColor = .systemRed
         case .loading:
-            c.textLabel?.textColor = .systemOrange
+            cell.textLabel?.textColor = .systemOrange
         case .notLoad:
-            c.textLabel?.textColor = .systemGray
+            cell.textLabel?.textColor = .systemGray
         }
         
-        return c
+        return cell
     }
     
     func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {

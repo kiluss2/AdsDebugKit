@@ -20,9 +20,9 @@ public final class AdTelemetry {
     public struct Settings: Codable {
         public var debugEnabled: Bool = false
         public var showToasts: Bool = false
-        public var keepEvents: Int = 200
+        public var keepEvents: Int = 100
         
-        public init(debugEnabled: Bool = false, showToasts: Bool = false, keepEvents: Int = 200) {
+        public init(debugEnabled: Bool = false, showToasts: Bool = false, keepEvents: Int = 100) {
             self.debugEnabled = debugEnabled
             self.showToasts = showToasts
             self.keepEvents = keepEvents
@@ -172,7 +172,7 @@ public final class AdTelemetry {
             }
         }
         
-        addRevenue(for: r.adIdName, valueUSD: r.valueUSD)
+        addRevenue(for: r.adIdName, adId: r.adId, valueUSD: r.valueUSD)
     }
     
     public func totalRevenueUSD() -> Double {
@@ -207,6 +207,7 @@ public final class AdTelemetry {
                 if adStates[adIdName] == nil {
                     adStates[adIdName] = AdStateInfo(
                         adIdName: adIdName,
+                        adId: adId.id,
                         loadState: .notLoad,
                         showState: .no,
                         revenueUSD: 0,
@@ -261,13 +262,14 @@ public final class AdTelemetry {
     
     /// Update ad state when a new event is logged
     private func updateAdState(for event: AdEvent) {
-        guard let adIdName = event.adIdName, configuration != nil else { return }
+        guard let adIdName = event.adIdName, let adId = event.adId, configuration != nil else { return }
         
         // Initialize if not exists
         if adStates[adIdName] == nil {
             // Try to get the ad ID from configuration
             adStates[adIdName] = AdStateInfo(
                 adIdName: adIdName,
+                adId: adId,
                 loadState: .notLoad,
                 showState: .no,
                 revenueUSD: 0,
@@ -286,6 +288,7 @@ public final class AdTelemetry {
             if currentState.loadState == .notLoad || currentState.loadState == .failed {
                 currentState = AdStateInfo(
                     adIdName: adIdName,
+                    adId: adId,
                     loadState: .loading,
                     showState: currentState.showState,
                     revenueUSD: currentState.revenueUSD,
@@ -297,6 +300,7 @@ public final class AdTelemetry {
         case .loadSuccess:
             currentState = AdStateInfo(
                 adIdName: adIdName,
+                adId: adId,
                 loadState: .success,
                 showState: currentState.showState,
                 revenueUSD: currentState.revenueUSD,
@@ -307,6 +311,7 @@ public final class AdTelemetry {
         case .loadFail:
             currentState = AdStateInfo(
                 adIdName: adIdName,
+                adId: adId,
                 loadState: .failed,
                 showState: currentState.showState,
                 revenueUSD: currentState.revenueUSD,
@@ -317,6 +322,7 @@ public final class AdTelemetry {
         case .showStart:
             currentState = AdStateInfo(
                 adIdName: adIdName,
+                adId: adId,
                 loadState: currentState.loadState,
                 showState: .showed,
                 revenueUSD: currentState.revenueUSD,
@@ -327,6 +333,7 @@ public final class AdTelemetry {
         case .showSuccess, .impression:
             currentState = AdStateInfo(
                 adIdName: adIdName,
+                adId: adId,
                 loadState: currentState.loadState,
                 showState: .showed,
                 revenueUSD: currentState.revenueUSD,
@@ -341,12 +348,13 @@ public final class AdTelemetry {
         adStates[adIdName] = currentState
     }
     
-    private func addRevenue(for adIdName: String?, valueUSD: Double) {
-        guard let adIdName = adIdName else { return }
+    private func addRevenue(for adIdName: String?, adId: String?, valueUSD: Double) {
+        guard let adIdName, let adId else { return }
         q.async {
             if self.adStates[adIdName] == nil {
                 self.adStates[adIdName] = AdStateInfo(
                     adIdName: adIdName,
+                    adId: adId,
                     loadState: .notLoad,
                     showState: .no,
                     revenueUSD: 0,
@@ -359,6 +367,7 @@ public final class AdTelemetry {
             guard var currentState = self.adStates[adIdName] else { return }
             currentState = AdStateInfo(
                 adIdName: adIdName,
+                adId: adId,
                 loadState: currentState.loadState,
                 showState: currentState.showState,
                 revenueUSD: currentState.revenueUSD + valueUSD,
