@@ -64,6 +64,14 @@ final class AdsDebugVC: UIViewController {
         pageVC.didMove(toParent: self)
     }
     
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        // Fallback: If dismissed interactively (drag down), ensure window is torn down
+        if isBeingDismissed || navigationController?.isBeingDismissed ?? false {
+            AdsDebugWindowManager.shared.hide()
+        }
+    }
+    
     @objc private func segmentChanged() {
         let index = segmentedControl.selectedSegmentIndex
         let vc: UIViewController
