@@ -28,6 +28,7 @@ public final class AdsDebugWindowManager: NSObject {
             win.windowScene = scene
         }
 
+        win.accessibilityIdentifier = "AdsDebugWindow"
         win.windowLevel = .alert + 2
         win.backgroundColor = .clear
 
