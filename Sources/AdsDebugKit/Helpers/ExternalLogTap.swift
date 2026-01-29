@@ -1,5 +1,5 @@
 //
-//  AdjustLogTap.swift
+//  ExternalLogTap.swift
 //  AdsDebugKit
 //
 //  Created by Son Le on 2025.
@@ -11,16 +11,21 @@ import Darwin
 
 /// Taps into the app's stdout/stderr, mirrors them back to the console,
 /// and extracts specific Adjust log lines to forward to AdTelemetry.
-final class AdjustLogTap {
-    static let shared = AdjustLogTap() // Simple singleton access
+final class ExternalLogTap {
+    static let shared = ExternalLogTap() // Simple singleton access
 
     private var src: DispatchSourceRead?          // GCD source that watches the pipe's read FD
     private var remainder = Data()                // Holds partial line bytes (UTF-8 safe)
     private var originalStdout: Int32 = -1        // Backup of original stdout FD
     private var originalStderr: Int32 = -1        // Backup of original stderr FD
-
+    
     // Tunables
-    private let matchToken = "[Adjust]d: Got JSON response with message:" // Target substring to detect
+    private let adjustToken = "[Adjust]d: Got JSON response with message:" // Target substring to detect
+    // facebook
+    private let purchaseToken = "fb_mobile_purchase"
+    private let flushResultToken = "Flush Result :"
+    private var isPurchasePending = false
+    
     private let mirrorToStderr = false           // Usually mirroring stdout is sufficient
     private let maxRemainderBytes = 1 << 20      // 1 MB safeguard for partial-buffer growth
 
@@ -133,11 +138,24 @@ final class AdjustLogTap {
                 ?? String(decoding: lineBytes, as: UTF8.self)
 
             // Only forward Adjust messages of interest.
-            if line.contains(matchToken) {
+            if line.contains(adjustToken) {
                 // Skip pure OSLog headers
                 if let r = line.range(of: "[Adjust]") {
                     let clean = String(line[r.lowerBound...])
                     batch.append(clean)
+                }
+            } else {
+                if line.contains(purchaseToken) {
+                    isPurchasePending = true
+                }
+
+                if line.contains(flushResultToken) {
+                    if isPurchasePending {
+                        let cleanMsg = line.trimmingCharacters(in: .whitespaces)
+                        batch.append("[FaceBook]: Purchase" + cleanMsg)
+                    }
+                    
+                    isPurchasePending = false
                 }
             }
         }

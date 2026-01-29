@@ -1,16 +1,13 @@
 //
-//  AdsDebugAdjustLogsVC.swift
+//  AdsDebugExternalLogsVC.swift
 //  AdsDebugKit
 //
 //  Created by Son Le on 2025.
 //
 
 import UIKit
-#if canImport(AdjustSdk)
-import AdjustSdk
-#endif
 
-final class AdsDebugAdjustLogsVC: UIViewController, UITableViewDataSource, UITableViewDelegate {
+final class AdsDebugExternalLogsVC: UIViewController, UITableViewDataSource, UITableViewDelegate {
     private let table = UITableView(frame: .zero, style: .insetGrouped)
     
     override func viewDidLoad() {
@@ -47,7 +44,7 @@ final class AdsDebugAdjustLogsVC: UIViewController, UITableViewDataSource, UITab
     }
     
     func tableView(_ tableView: UITableView, titleForHeaderInSection section: Int) -> String? {
-        return "Adjust Logs"
+        return "External Status"
     }
     
     func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
@@ -63,7 +60,7 @@ final class AdsDebugAdjustLogsVC: UIViewController, UITableViewDataSource, UITab
         c.textLabel?.numberOfLines = 0
         if line.contains("[ViewAppear]") {
             c.textLabel?.textColor = .systemYellow
-        } else if line.contains("Ad revenue tracked") {
+        } else if line.contains("Ad revenue tracked") || line.contains("Flush Result : Success") {
             c.textLabel?.textColor = .systemGreen
         }
         c.detailTextLabel?.text = nil

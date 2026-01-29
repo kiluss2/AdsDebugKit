@@ -112,12 +112,12 @@ public final class AdTelemetry {
         shared.settings = s
         
         if enabled {
-            AdjustLogTap.shared.start()
+            ExternalLogTap.shared.start()
             MotionShakeDetector.shared.start {
                 AdsDebugWindowManager.shared.toggle()
             }
         } else {
-            AdjustLogTap.shared.stop()
+            ExternalLogTap.shared.stop()
             MotionShakeDetector.shared.stop()
         }
     }
@@ -126,7 +126,7 @@ public final class AdTelemetry {
     /// This ensures services are started even if debug was enabled in a previous session
     private func startDebugServicesIfNeeded() {
         guard AdTelemetry.isDebugEnabled() else { return }
-        AdjustLogTap.shared.start()
+        ExternalLogTap.shared.start()
         MotionShakeDetector.shared.start {
             AdsDebugWindowManager.shared.toggle()
         }

@@ -9,11 +9,11 @@ import UIKit
 
 final class AdsDebugVC: UIViewController {
     private let pageVC = UIPageViewController(transitionStyle: .scroll, navigationOrientation: .horizontal)
-    private let segmentedControl = UISegmentedControl(items: ["Ad States", "Ad Events", "Adjust", "Settings"])
+    private let segmentedControl = UISegmentedControl(items: ["Ad States", "Ad Events", "Externals", "Settings"])
     
     private let statesVC = AdsDebugStatesVC()
     private let eventsVC = AdsDebugEventsVC()
-    private let adjustLogsVC = AdsDebugAdjustLogsVC()
+    private let adjustLogsVC = AdsDebugExternalLogsVC()
     private let settingsVC = AdsDebugSettingsVC()
     
     override func viewDidLoad() {
