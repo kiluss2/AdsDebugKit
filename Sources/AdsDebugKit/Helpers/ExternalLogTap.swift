@@ -3,175 +3,232 @@
 //  AdsDebugKit
 //
 //  Created by Son Le on 2025.
-//  Optimized & safe version
+//  Optimized for Adjust v5 (OSLog) & Facebook (StdOut)
 //
 
 import Foundation
 import Darwin
+import OSLog
 
-/// Taps into the app's stdout/stderr, mirrors them back to the console,
-/// and extracts specific Adjust log lines to forward to AdTelemetry.
 final class ExternalLogTap {
-    static let shared = ExternalLogTap() // Simple singleton access
+    static let shared = ExternalLogTap()
 
-    private var src: DispatchSourceRead?          // GCD source that watches the pipe's read FD
-    private var remainder = Data()                // Holds partial line bytes (UTF-8 safe)
-    private var originalStdout: Int32 = -1        // Backup of original stdout FD
-    private var originalStderr: Int32 = -1        // Backup of original stderr FD
+    // MARK: - Pipe Properties (For Facebook & Debug mode)
+    private var src: DispatchSourceRead?
+    private var remainder = Data()
+    private var originalStdout: Int32 = -1
+    private var originalStderr: Int32 = -1
     
-    // Tunables
-    private let adjustToken = "[Adjust]d: Got JSON response with message:" // Target substring to detect
-    // facebook
-    private let purchaseToken = "fb_mobile_purchase"
-    private let flushResultToken = "Flush Result :"
-    private var isPurchasePending = false
+    // MARK: - OSLog Properties (For Adjust Standalone mode)
+    private var logPollTimer: Timer?
+    // Instead of using fetch time, we use the timestamp of the last processed log for better accuracy
+    private var lastProcessedLogTime: Date = Date()
+    private let sessionStartTime = Date()
+    private var processedLogHashes = Set<Int>()
     
-    private let mirrorToStderr = false           // Usually mirroring stdout is sufficient
-    private let maxRemainderBytes = 1 << 20      // 1 MB safeguard for partial-buffer growth
+    // MARK: - Tunables
+    private let adjustToken = "[Adjust]d: Got JSON response with message:"
+    
+    private let fbPurchaseToken = "fb_mobile_purchase"
+    private let fbFlushResultToken = "Flush Result :"
+    private var isFBPurchasePending = false
+    
+    private let mirrorToStderr = false
+    private let maxRemainderBytes = 1 << 20
 
     private init() {}
 
-    /// Starts intercepting stdout/stderr and processing log lines.
-    /// Safe to call multiple times; subsequent calls are ignored.
     func start() {
+        // A. Activate Pipe (Capture Facebook)
+        startPipe()
+        
+        // B. Activate OSLog Polling (Capture Adjust)
+        if #available(iOS 15.0, *) {
+            startOSLogPolling()
+        }
+    }
+
+    func stop() {
+        // Stop Pipe
+        src?.cancel()
+        src = nil
+        remainder.removeAll(keepingCapacity: false)
+        
+        // Stop OSLog Timer
+        logPollTimer?.invalidate()
+        logPollTimer = nil
+    }
+    
+    // MARK: - A. Standard Output Pipe Logic (Facebook)
+    
+    private func startPipe() {
         guard src == nil else { return }
 
-        // 1) Preserve original FDs so we can mirror output and restore later.
         originalStdout = dup(STDOUT_FILENO)
         originalStderr = dup(STDERR_FILENO)
 
-        // 2) Disable stdio buffering to reduce log latency.
         setvbuf(stdout, nil, _IONBF, 0)
         setvbuf(stderr, nil, _IONBF, 0)
 
-        // 3) Create a pipe; we'll read from rfd and redirect stdout/stderr to wfd.
         var fds: [Int32] = [0, 0]
         guard pipe(&fds) == 0 else { return }
         let rfd = fds[0], wfd = fds[1]
-        _ = fcntl(rfd, F_SETFL, O_NONBLOCK) // Non-blocking read to avoid stalling
+        _ = fcntl(rfd, F_SETFL, O_NONBLOCK)
 
-        // 4) Redirect both stdout & stderr to the pipe's writer end.
         dup2(wfd, STDOUT_FILENO)
         dup2(wfd, STDERR_FILENO)
-        close(wfd) // Writer FD is now owned by stdout/stderr
+        close(wfd)
 
-        // 5) Install a read source on a private queue to drain the pipe promptly.
         let q = DispatchQueue(label: "adjust.log.tap.read")
         let s = DispatchSource.makeReadSource(fileDescriptor: rfd, queue: q)
 
         s.setEventHandler { [weak self] in
             guard let self = self else { return }
-
-            // Drain available bytes (up to 64 KB per inner read) per event.
             var localBuffer = [UInt8](repeating: 0, count: 64 * 1024)
             while true {
                 let n = read(rfd, &localBuffer, localBuffer.count)
                 if n > 0 {
-                    // Mirror raw bytes back to original console (no re-encoding).
                     localBuffer.withUnsafeBytes { bytes in
-                        if self.originalStdout >= 0 {
-                            _ = write(self.originalStdout, bytes.baseAddress, n)
-                        }
-                        if self.mirrorToStderr, self.originalStderr >= 0 {
-                            _ = write(self.originalStderr, bytes.baseAddress, n)
-                        }
+                        if self.originalStdout >= 0 { _ = write(self.originalStdout, bytes.baseAddress, n) }
+                        if self.mirrorToStderr, self.originalStderr >= 0 { _ = write(self.originalStderr, bytes.baseAddress, n) }
                     }
-
-                    // Feed captured bytes into our UTF-8 aware line parser.
                     let chunk = Data(localBuffer[0..<n])
                     self.ingest(chunk)
                 } else {
-                    // n == 0: writer closed, or n == -1 (EAGAIN etc.). Break and let the source re-fire later.
                     break
                 }
             }
         }
-
+        
         s.setCancelHandler { [weak self] in
-            // Close the read FD and restore original stdout/stderr.
             close(rfd)
-            if let self = self {
-                if self.originalStdout >= 0 {
-                    dup2(self.originalStdout, STDOUT_FILENO)
-                    close(self.originalStdout)
-                    self.originalStdout = -1
-                }
-                if self.originalStderr >= 0 {
-                    dup2(self.originalStderr, STDERR_FILENO)
-                    close(self.originalStderr)
-                    self.originalStderr = -1
-                }
+            guard let self = self else { return }
+            if self.originalStdout >= 0 {
+                dup2(self.originalStdout, STDOUT_FILENO)
+                close(self.originalStdout)
+                self.originalStdout = -1
+            }
+            if self.originalStderr >= 0 {
+                dup2(self.originalStderr, STDERR_FILENO)
+                close(self.originalStderr)
+                self.originalStderr = -1
             }
         }
-
         s.resume()
         src = s
     }
 
-    /// Stops intercepting and restores stdout/stderr.
-    func stop() {
-        src?.cancel()
-        src = nil
-        remainder.removeAll(keepingCapacity: false)
-    }
-
-    // MARK: - Parsing & Filtering (UTF-8 safe)
-
-    /// Append bytes, extract complete lines by '\n', decode to UTF-8, and batch-match Adjust logs.
     private func ingest(_ chunk: Data) {
         remainder.append(chunk)
-
         var batch: [String] = []
 
-        // Look for newline (0x0A). If line ends with '\r\n', trim the '\r'.
         while let nlIndex = remainder.firstIndex(of: 0x0A) {
             var lineBytes = remainder[..<nlIndex]
-            let nextStart = remainder.index(after: nlIndex)
-            remainder.removeSubrange(..<nextStart)
+            remainder.removeSubrange(..<remainder.index(after: nlIndex))
+            if let last = lineBytes.last, last == 0x0D { lineBytes = lineBytes.dropLast() }
 
-            if let last = lineBytes.last, last == 0x0D {
-                lineBytes = lineBytes.dropLast()
-            }
+            let line = String(data: Data(lineBytes), encoding: .utf8) ?? String(decoding: lineBytes, as: UTF8.self)
 
-            // UTF-8 decode (strict first, lossy fallback if needed).
-            let line: String = String(data: Data(lineBytes), encoding: .utf8)
-                ?? String(decoding: lineBytes, as: UTF8.self)
-
-            // Only forward Adjust messages of interest.
             if line.contains(adjustToken) {
-                // Skip pure OSLog headers
                 if let r = line.range(of: "[Adjust]") {
-                    let clean = String(line[r.lowerBound...])
-                    batch.append(clean)
+                    batch.append(String(line[r.lowerBound...]))
                 }
-            } else {
-                if line.contains(purchaseToken) {
-                    isPurchasePending = true
+            }
+            else {
+                if line.contains(fbPurchaseToken) {
+                    isFBPurchasePending = true
                 }
-
-                if line.contains(flushResultToken) {
-                    if isPurchasePending {
+                if line.contains(fbFlushResultToken) {
+                    if isFBPurchasePending {
                         let cleanMsg = line.trimmingCharacters(in: .whitespaces)
-                        batch.append("[FaceBook]: Purchase" + cleanMsg)
+                        batch.append("[FaceBook]: Purchase " + cleanMsg)
                     }
-                    
-                    isPurchasePending = false
+                    isFBPurchasePending = false
                 }
             }
         }
 
-        // Safety cap: if we never see a newline for a long time, bound memory usage.
-        if remainder.count > maxRemainderBytes {
-            remainder = remainder.suffix(4096) // keep tail to preserve partial UTF-8
-        }
-
-        // Emit matches once per chunk to avoid flooding the main thread.
+        if remainder.count > maxRemainderBytes { remainder = remainder.suffix(4096) }
+        
         if !batch.isEmpty {
             DispatchQueue.main.async {
-                for msg in batch {
-                    AdTelemetry.shared.logDebugLine(msg)
+                for msg in batch { AdTelemetry.shared.logDebugLine(msg) }
+            }
+        }
+    }
+    
+    // MARK: - B. OSLog Scanning Logic (Optimized v2)
+    
+    @available(iOS 15.0, *)
+    private func startOSLogPolling() {
+        // IMPORTANT: Only start scanning from when this function is called.
+        // No more backtracking to avoid re-capturing old logs from previous runs (if App wasn't fully killed)
+        lastProcessedLogTime = Date()
+
+        // Fix Delay: Switch to .userInitiated
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else { return }
+            
+            self.logPollTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
+                DispatchQueue.global(qos: .utility).async {
+                    self?.scanRecentOSLogs()
                 }
             }
+            self.logPollTimer?.fire()
+            RunLoop.current.add(self.logPollTimer!, forMode: .default)
+            RunLoop.current.run()
+        }
+    }
+    
+    @available(iOS 15.0, *)
+    private func scanRecentOSLogs() {
+        do {
+            let store = try OSLogStore(scope: .currentProcessIdentifier)
+            
+            // Get position from the last processed time
+            let position = store.position(date: lastProcessedLogTime)
+            let entries = try store.getEntries(at: position)
+            
+            for entry in entries {
+                guard let log = entry as? OSLogEntryLog else { continue }
+                
+                // 1. ANTI-LOOP LEVEL 1: Ignore logs created before App Start
+                if log.date < sessionStartTime { continue }
+
+                // 2. ANTI-LOOP LEVEL 2: Check timestamp
+                // Log must be newer than the processed time (plus a small epsilon)
+                if log.date <= lastProcessedLogTime.addingTimeInterval(0.0001) { continue }
+                
+                let msg = log.composedMessage
+                
+                // 3. ANTI-LOOP LEVEL 3 (Absolute): Use Hash
+                // If content is identical AND time is identical -> Skip
+                let logHash = log.date.hashValue ^ msg.hashValue
+                if processedLogHashes.contains(logHash) { continue }
+                
+                // --- PROCESS LOG ---
+                if msg.contains(adjustToken) {
+                    
+                    // If you want to filter out [Adjust]v uncomment below
+                    // if msg.contains("[Adjust]v") { continue }
+                    
+                    // Update latest time marker
+                    lastProcessedLogTime = log.date
+                    
+                    // Save hash so we don't process this again
+                    processedLogHashes.insert(logHash)
+                    
+                    // Clean up hash set if too large (avoid long-term memory leak)
+                    if processedLogHashes.count > 1000 { processedLogHashes.removeAll() }
+
+                    let cleanMsg = "OSLog: \(msg)"
+                    DispatchQueue.main.async {
+                        AdTelemetry.shared.logDebugLine(cleanMsg)
+                    }
+                }
+            }
+        } catch {
+             // print("Scan error: \(error)")
         }
     }
 }
