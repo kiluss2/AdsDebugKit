@@ -18,31 +18,38 @@ final class ExternalLogTap {
     private var remainder = Data()
     private var originalStdout: Int32 = -1
     private var originalStderr: Int32 = -1
-    
+
     // MARK: - OSLog Properties (For Adjust Standalone mode)
-    private var logPollTimer: Timer?
-    // Instead of using fetch time, we use the timestamp of the last processed log for better accuracy
+    // Watermarks
     private var lastProcessedLogTime: Date = Date()
-    private let sessionStartTime = Date()
+    private var sessionStartTime: Date = Date()
+
+    // De-dup (only for matched logs)
     private var processedLogHashes = Set<Int>()
-    
+
+    // Prevent multiple pollers
+    private var isOSLogPolling = false
+
+    private var osStore: Any?
+    private var osTimer: Any?
+
     // MARK: - Tunables
     private let adjustToken = "[Adjust]d: Got JSON response with message:"
-    
+
     private let fbPurchaseToken = "fb_mobile_purchase"
     private let fbFlushResultToken = "Flush Result :"
     private var isFBPurchasePending = false
-    
+
     private let mirrorToStderr = false
     private let maxRemainderBytes = 1 << 20
 
     private init() {}
 
     func start() {
-        // A. Activate Pipe (Capture Facebook)
+        // Activate Pipe (Capture Facebook)
         startPipe()
-        
-        // B. Activate OSLog Polling (Capture Adjust)
+
+        // Activate OSLog Polling (Capture Adjust)
         if #available(iOS 15.0, *) {
             startOSLogPolling()
         }
@@ -53,14 +60,15 @@ final class ExternalLogTap {
         src?.cancel()
         src = nil
         remainder.removeAll(keepingCapacity: false)
-        
-        // Stop OSLog Timer
-        logPollTimer?.invalidate()
-        logPollTimer = nil
+
+        // Stop OSLog Poller
+        if #available(iOS 15.0, *) {
+            stopOSLogPolling()
+        }
     }
-    
-    // MARK: - A. Standard Output Pipe Logic (Facebook)
-    
+
+    // MARK: - Standard Output Pipe Logic (Facebook)
+
     private func startPipe() {
         guard src == nil else { return }
 
@@ -85,6 +93,7 @@ final class ExternalLogTap {
         s.setEventHandler { [weak self] in
             guard let self = self else { return }
             var localBuffer = [UInt8](repeating: 0, count: 64 * 1024)
+
             while true {
                 let n = read(rfd, &localBuffer, localBuffer.count)
                 if n > 0 {
@@ -92,6 +101,7 @@ final class ExternalLogTap {
                         if self.originalStdout >= 0 { _ = write(self.originalStdout, bytes.baseAddress, n) }
                         if self.mirrorToStderr, self.originalStderr >= 0 { _ = write(self.originalStderr, bytes.baseAddress, n) }
                     }
+
                     let chunk = Data(localBuffer[0..<n])
                     self.ingest(chunk)
                 } else {
@@ -99,21 +109,24 @@ final class ExternalLogTap {
                 }
             }
         }
-        
+
         s.setCancelHandler { [weak self] in
             close(rfd)
             guard let self = self else { return }
+
             if self.originalStdout >= 0 {
                 dup2(self.originalStdout, STDOUT_FILENO)
                 close(self.originalStdout)
                 self.originalStdout = -1
             }
+
             if self.originalStderr >= 0 {
                 dup2(self.originalStderr, STDERR_FILENO)
                 close(self.originalStderr)
                 self.originalStderr = -1
             }
         }
+
         s.resume()
         src = s
     }
@@ -133,8 +146,7 @@ final class ExternalLogTap {
                 if let r = line.range(of: "[Adjust]") {
                     batch.append(String(line[r.lowerBound...]))
                 }
-            }
-            else {
+            } else {
                 if line.contains(fbPurchaseToken) {
                     isFBPurchasePending = true
                 }
@@ -148,87 +160,117 @@ final class ExternalLogTap {
             }
         }
 
-        if remainder.count > maxRemainderBytes { remainder = remainder.suffix(4096) }
-        
+        if remainder.count > maxRemainderBytes {
+            remainder = remainder.suffix(4096)
+        }
+
         if !batch.isEmpty {
-            DispatchQueue.main.async {
-                for msg in batch { AdTelemetry.shared.logDebugLine(msg) }
-            }
+            // Batch insert + single notify (avoid UI lag)
+            AdTelemetry.shared.logDebugLines(batch)
         }
     }
-    
-    // MARK: - B. OSLog Scanning Logic (Optimized v2)
-    
+
+    // MARK: - OSLog Scanning Logic (Fix lag + delay)
+
     @available(iOS 15.0, *)
     private func startOSLogPolling() {
-        // IMPORTANT: Only start scanning from when this function is called.
-        // No more backtracking to avoid re-capturing old logs from previous runs (if App wasn't fully killed)
-        lastProcessedLogTime = Date()
+        guard !isOSLogPolling else { return }
+        isOSLogPolling = true
 
-        // Fix Delay: Switch to .userInitiated
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            guard let self = self else { return }
-            
-            self.logPollTimer = Timer.scheduledTimer(withTimeInterval: 2.0, repeats: true) { [weak self] _ in
-                DispatchQueue.global(qos: .utility).async {
-                    self?.scanRecentOSLogs()
-                }
-            }
-            self.logPollTimer?.fire()
-            RunLoop.current.add(self.logPollTimer!, forMode: .default)
-            RunLoop.current.run()
-        }
-    }
-    
-    @available(iOS 15.0, *)
-    private func scanRecentOSLogs() {
+        // Start a new session marker to avoid backtracking
+        sessionStartTime = Date()
+        lastProcessedLogTime = sessionStartTime
+        processedLogHashes.removeAll(keepingCapacity: true)
+
         do {
-            let store = try OSLogStore(scope: .currentProcessIdentifier)
-            
-            // Get position from the last processed time
-            let position = store.position(date: lastProcessedLogTime)
-            let entries = try store.getEntries(at: position)
-            
-            for entry in entries {
-                guard let log = entry as? OSLogEntryLog else { continue }
-                
-                // 1. ANTI-LOOP LEVEL 1: Ignore logs created before App Start
-                if log.date < sessionStartTime { continue }
-
-                // 2. ANTI-LOOP LEVEL 2: Check timestamp
-                // Log must be newer than the processed time (plus a small epsilon)
-                if log.date <= lastProcessedLogTime.addingTimeInterval(0.0001) { continue }
-                
-                let msg = log.composedMessage
-                
-                // 3. ANTI-LOOP LEVEL 3 (Absolute): Use Hash
-                // If content is identical AND time is identical -> Skip
-                let logHash = log.date.hashValue ^ msg.hashValue
-                if processedLogHashes.contains(logHash) { continue }
-                
-                // --- PROCESS LOG ---
-                if msg.contains(adjustToken) {
-                    
-                    // If you want to filter out [Adjust]v uncomment below
-                    // if msg.contains("[Adjust]v") { continue }
-                    
-                    // Update latest time marker
-                    lastProcessedLogTime = log.date
-                    
-                    // Save hash so we don't process this again
-                    processedLogHashes.insert(logHash)
-                    
-                    // Clean up hash set if too large (avoid long-term memory leak)
-                    if processedLogHashes.count > 1000 { processedLogHashes.removeAll() }
-
-                    let cleanMsg = "OSLog: \(msg)"
-                    DispatchQueue.main.async {
-                        AdTelemetry.shared.logDebugLine(cleanMsg)
-                    }
-                }
+            if #available(iOS 15.0, *) {
+                osStore = try OSLogStore(scope: .currentProcessIdentifier)
             }
         } catch {
-             // print("Scan error: \(error)")
+            osStore = nil
+            isOSLogPolling = false
+            return
+        }
+
+        let q = DispatchQueue(label: "adjust.log.tap.oslog", qos: .utility)
+        let t = DispatchSource.makeTimerSource(queue: q)
+        t.schedule(deadline: .now(), repeating: .seconds(2), leeway: .milliseconds(250))
+        t.setEventHandler { [weak self] in
+            self?.scanRecentOSLogs()
+        }
+        t.resume()
+        osTimer = t
+    }
+
+    @available(iOS 15.0, *)
+    private func stopOSLogPolling() {
+        isOSLogPolling = false
+
+        if let t = osTimer as? DispatchSourceTimer {
+            t.cancel()
+        }
+        osTimer = nil
+        osStore = nil
+    }
+
+    @available(iOS 15.0, *)
+    private func scanRecentOSLogs() {
+        guard let store = osStore as? OSLogStore else { return }
+
+        do {
+            let position = store.position(date: lastProcessedLogTime)
+            let entries = try store.getEntries(at: position)
+
+            var newestSeen = lastProcessedLogTime
+            var batch: [String] = []
+            var scanned = 0
+
+            for entry in entries {
+                scanned += 1
+                if scanned > 2500 { break } // safety break
+
+                guard let log = entry as? OSLogEntryLog else { continue }
+
+                // always advance watermark candidate (even if not match token)
+                if log.date > newestSeen {
+                    newestSeen = log.date
+                }
+
+                // Ignore logs before current session
+                if log.date < sessionStartTime { continue }
+
+                // Avoid re-processing the same timestamp boundary
+                if log.date <= lastProcessedLogTime.addingTimeInterval(0.0001) { continue }
+
+                let msg = log.composedMessage
+
+                guard msg.contains(adjustToken) else { continue }
+
+                // De-dup for matched logs
+                let h = log.date.hashValue ^ msg.hashValue
+                if processedLogHashes.contains(h) { continue }
+                processedLogHashes.insert(h)
+                if processedLogHashes.count > 3000 {
+                    processedLogHashes.removeAll(keepingCapacity: true)
+                }
+
+                batch.append("OSLog: \(msg)")
+
+                // Optional: avoid flooding UI
+                if batch.count >= 120 { break }
+            }
+
+            // advance lastProcessedLogTime even if no matched Adjust logs
+            if newestSeen > lastProcessedLogTime {
+                lastProcessedLogTime = newestSeen.addingTimeInterval(0.0001)
+            }
+
+            if !batch.isEmpty {
+                // Batch insert + single notify (avoid UI lag)
+                AdTelemetry.shared.logDebugLines(batch)
+            }
+        } catch {
+            // swallow to keep polling lightweight
         }
     }
 }

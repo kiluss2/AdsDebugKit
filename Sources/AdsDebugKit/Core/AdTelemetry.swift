@@ -237,6 +237,28 @@ public final class AdTelemetry {
         }
     }
     
+    public func logDebugLines(_ lines: [String]) {
+        guard !lines.isEmpty else { return }
+        q.async {
+            let ts = self.timeFormatter.string(from: Date())
+
+            // Insert newest-first by inserting at index 0
+            for s in lines {
+                let line = "[\(ts)] \(s)"
+                self._debugLines.insert(line, at: 0)
+            }
+
+            let k = self.settings.keepEvents
+            if self._debugLines.count > k {
+                self._debugLines.removeLast(self._debugLines.count - k)
+            }
+
+            // Notify once (huge UI lag saver)
+            self.notify()
+        }
+    }
+
+    
     public var debugLines: [String] {
         return q.sync { _debugLines }
     }
