@@ -2,9 +2,6 @@
 //  ExternalLogTap.swift
 //  AdsDebugKit
 //
-//  Created by Son Le on 2025.
-//  Optimized for Adjust v5 (OSLog) & Facebook (StdOut)
-//
 
 import Foundation
 import Darwin
@@ -20,20 +17,20 @@ final class ExternalLogTap {
     private var originalStderr: Int32 = -1
 
     // MARK: - OSLog Properties (For Adjust Standalone mode)
-    // Watermarks
+    private var isOSLogPolling = false
     private var lastProcessedLogTime: Date = Date()
     private var sessionStartTime: Date = Date()
 
-    // De-dup (only for matched logs)
+    // De-dup ONLY for matched logs
     private var processedLogHashes = Set<Int>()
 
-    // Prevent multiple pollers
-    private var isOSLogPolling = false
-
-    private var osStore: Any?
-    private var osTimer: Any?
+    // ❗️Do NOT annotate stored properties with @available.
+    // Use Any? to keep compatibility with iOS < 15 targets.
+    private var osStoreAny: Any?
+    private var osTimerAny: Any?
 
     // MARK: - Tunables
+    // ✅ KEEP EXACT TOKEN
     private let adjustToken = "[Adjust]d: Got JSON response with message:"
 
     private let fbPurchaseToken = "fb_mobile_purchase"
@@ -46,10 +43,7 @@ final class ExternalLogTap {
     private init() {}
 
     func start() {
-        // Activate Pipe (Capture Facebook)
         startPipe()
-
-        // Activate OSLog Polling (Capture Adjust)
         if #available(iOS 15.0, *) {
             startOSLogPolling()
         }
@@ -61,13 +55,13 @@ final class ExternalLogTap {
         src = nil
         remainder.removeAll(keepingCapacity: false)
 
-        // Stop OSLog Poller
+        // Stop OSLog Polling
         if #available(iOS 15.0, *) {
             stopOSLogPolling()
         }
     }
 
-    // MARK: - Standard Output Pipe Logic (Facebook)
+    // MARK: - A. Standard Output Pipe Logic (Facebook)
 
     private func startPipe() {
         guard src == nil else { return }
@@ -87,7 +81,7 @@ final class ExternalLogTap {
         dup2(wfd, STDERR_FILENO)
         close(wfd)
 
-        let q = DispatchQueue(label: "adjust.log.tap.read")
+        let q = DispatchQueue(label: "adjust.log.tap.read", qos: .utility)
         let s = DispatchSource.makeReadSource(fileDescriptor: rfd, queue: q)
 
         s.setEventHandler { [weak self] in
@@ -101,7 +95,6 @@ final class ExternalLogTap {
                         if self.originalStdout >= 0 { _ = write(self.originalStdout, bytes.baseAddress, n) }
                         if self.mirrorToStderr, self.originalStderr >= 0 { _ = write(self.originalStderr, bytes.baseAddress, n) }
                     }
-
                     let chunk = Data(localBuffer[0..<n])
                     self.ingest(chunk)
                 } else {
@@ -165,29 +158,26 @@ final class ExternalLogTap {
         }
 
         if !batch.isEmpty {
-            // Batch insert + single notify (avoid UI lag)
             AdTelemetry.shared.logDebugLines(batch)
         }
     }
 
-    // MARK: - OSLog Scanning Logic (Fix lag + delay)
+    // MARK: - B. OSLog Scanning Logic (Optimized)
 
     @available(iOS 15.0, *)
     private func startOSLogPolling() {
         guard !isOSLogPolling else { return }
         isOSLogPolling = true
 
-        // Start a new session marker to avoid backtracking
         sessionStartTime = Date()
         lastProcessedLogTime = sessionStartTime
         processedLogHashes.removeAll(keepingCapacity: true)
 
         do {
-            if #available(iOS 15.0, *) {
-                osStore = try OSLogStore(scope: .currentProcessIdentifier)
-            }
+            let store = try OSLogStore(scope: .currentProcessIdentifier)
+            osStoreAny = store
         } catch {
-            osStore = nil
+            osStoreAny = nil
             isOSLogPolling = false
             return
         }
@@ -196,26 +186,26 @@ final class ExternalLogTap {
         let t = DispatchSource.makeTimerSource(queue: q)
         t.schedule(deadline: .now(), repeating: .seconds(2), leeway: .milliseconds(250))
         t.setEventHandler { [weak self] in
-            self?.scanRecentOSLogs()
+            self?.scanRecentOSLogs_iOS15()
         }
         t.resume()
-        osTimer = t
+        osTimerAny = t
     }
 
     @available(iOS 15.0, *)
     private func stopOSLogPolling() {
         isOSLogPolling = false
 
-        if let t = osTimer as? DispatchSourceTimer {
+        if let t = osTimerAny as? DispatchSourceTimer {
             t.cancel()
         }
-        osTimer = nil
-        osStore = nil
+        osTimerAny = nil
+        osStoreAny = nil
     }
 
     @available(iOS 15.0, *)
-    private func scanRecentOSLogs() {
-        guard let store = osStore as? OSLogStore else { return }
+    private func scanRecentOSLogs_iOS15() {
+        guard let store = osStoreAny as? OSLogStore else { return }
 
         do {
             let position = store.position(date: lastProcessedLogTime)
@@ -227,26 +217,22 @@ final class ExternalLogTap {
 
             for entry in entries {
                 scanned += 1
-                if scanned > 2500 { break } // safety break
+                if scanned > 2500 { break }
 
                 guard let log = entry as? OSLogEntryLog else { continue }
 
-                // always advance watermark candidate (even if not match token)
-                if log.date > newestSeen {
-                    newestSeen = log.date
-                }
+                // ✅ always advance watermark candidate
+                if log.date > newestSeen { newestSeen = log.date }
 
-                // Ignore logs before current session
                 if log.date < sessionStartTime { continue }
-
-                // Avoid re-processing the same timestamp boundary
                 if log.date <= lastProcessedLogTime.addingTimeInterval(0.0001) { continue }
 
                 let msg = log.composedMessage
 
+                // ✅ KEEP EXACT TOKEN FILTER
                 guard msg.contains(adjustToken) else { continue }
 
-                // De-dup for matched logs
+                // de-dup for matched logs
                 let h = log.date.hashValue ^ msg.hashValue
                 if processedLogHashes.contains(h) { continue }
                 processedLogHashes.insert(h)
@@ -255,22 +241,19 @@ final class ExternalLogTap {
                 }
 
                 batch.append("OSLog: \(msg)")
-
-                // Optional: avoid flooding UI
                 if batch.count >= 120 { break }
             }
 
-            // advance lastProcessedLogTime even if no matched Adjust logs
+            // ✅ critical fix: advance even if no matched logs
             if newestSeen > lastProcessedLogTime {
                 lastProcessedLogTime = newestSeen.addingTimeInterval(0.0001)
             }
 
             if !batch.isEmpty {
-                // Batch insert + single notify (avoid UI lag)
                 AdTelemetry.shared.logDebugLines(batch)
             }
         } catch {
-            // swallow to keep polling lightweight
+            // silent
         }
     }
 }
