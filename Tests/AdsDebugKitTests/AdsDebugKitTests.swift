@@ -168,6 +168,29 @@ final class AdsDebugKitTests: XCTestCase {
         XCTAssertEqual(AdTelemetry.shared.customEventsSnapshot().first?.event, "remote_config")
     }
 
+    func testDebugLinesDeduplicateSameRawLine() {
+        enableDebug()
+
+        let line = "Adjust Response message: Ad revenue tracked"
+        AdTelemetry.shared.logDebugLines([line, line])
+
+        waitUntil {
+            AdTelemetry.shared.debugLines.count == 1
+        }
+
+        XCTAssertEqual(AdTelemetry.shared.debugLines.first?.contains(line), true)
+
+        AdTelemetry.shared.clearEvents()
+        waitUntil {
+            AdTelemetry.shared.debugLines.isEmpty
+        }
+
+        AdTelemetry.shared.logDebugLine(line)
+        waitUntil {
+            AdTelemetry.shared.debugLines.count == 1
+        }
+    }
+
     func testSettingsDecodeOldPayloadWithDefaults() throws {
         let data = #"{"debugEnabled":true,"showToasts":true,"keepEvents":12}"#.data(using: .utf8)!
         let settings = try JSONDecoder().decode(AdDebugSettings.self, from: data)

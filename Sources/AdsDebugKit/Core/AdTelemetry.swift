@@ -45,6 +45,9 @@ public final class AdTelemetry {
     // Store ad states by ad ID name (string) for Codable compatibility
     private var adStates: [String: AdStateInfo] = [:]
     private var _debugLines: [String] = []
+    private var recentDebugLineTimestamps: [String: Date] = [:]
+    private let recentDebugLineDedupWindow: TimeInterval = 2
+    private let recentDebugLineLimit = 200
 
     // UserDefaults
     private let udKey = "telemetry.ads.settings"
@@ -432,6 +435,7 @@ public final class AdTelemetry {
             self.externalEvents.removeAll()
             self.customEvents.removeAll()
             self._debugLines.removeAll()
+            self.recentDebugLineTimestamps.removeAll()
             self.adStates.removeAll()
             self.notifyOnQueue()
         }
@@ -558,9 +562,13 @@ public final class AdTelemetry {
         guard AdTelemetry.isDebugEnabled() else { return }
 
         q.async {
-            let ts = self.timeFormatter.string(from: Date())
+            let now = Date()
+            let ts = self.timeFormatter.string(from: now)
 
             for s in lines {
+                let key = self.debugLineKey(s)
+                if self.isRecentDebugLineDuplicate(key, now: now) { continue }
+                self.rememberDebugLineKey(key, now: now)
                 let line = "[\(ts)] \(s)"
                 self._debugLines.insert(line, at: 0)
             }
@@ -595,6 +603,35 @@ public final class AdTelemetry {
         } else {
             q.async { self.notifyOnQueue() }
         }
+    }
+
+    private func debugLineKey(_ line: String) -> String {
+        line
+            .replacingOccurrences(of: #"^\[[^\]]+\]\s*"#, with: "", options: .regularExpression)
+            .replacingOccurrences(of: #"^OSLog:\s*"#, with: "", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private func isRecentDebugLineDuplicate(_ key: String, now: Date) -> Bool {
+        pruneRecentDebugLines(now: now)
+        guard let previous = recentDebugLineTimestamps[key] else { return false }
+        return now.timeIntervalSince(previous) < recentDebugLineDedupWindow
+    }
+
+    private func rememberDebugLineKey(_ key: String, now: Date) {
+        recentDebugLineTimestamps[key] = now
+        guard recentDebugLineTimestamps.count > recentDebugLineLimit else { return }
+        let overflow = recentDebugLineTimestamps.count - recentDebugLineLimit
+        let oldestKeys = recentDebugLineTimestamps
+            .sorted { $0.value < $1.value }
+            .prefix(overflow)
+            .map(\.key)
+        oldestKeys.forEach { recentDebugLineTimestamps.removeValue(forKey: $0) }
+    }
+
+    private func pruneRecentDebugLines(now: Date) {
+        let cutoff = now.addingTimeInterval(-recentDebugLineDedupWindow)
+        recentDebugLineTimestamps = recentDebugLineTimestamps.filter { $0.value >= cutoff }
     }
 
     /// ✅ Coalesce notifications to avoid main-thread spam
@@ -881,6 +918,7 @@ public final class AdTelemetry {
             customEvents.removeAll()
             adStates.removeAll()
             _debugLines.removeAll()
+            recentDebugLineTimestamps.removeAll()
             notifyScheduled = false
         }
     }

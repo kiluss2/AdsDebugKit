@@ -192,6 +192,46 @@ final class AdsDebugCardTableViewCell: UITableViewCell {
     }
 }
 
+final class AdsDebugMonoTableViewCell: UITableViewCell {
+    private let monoLabel = UILabel()
+
+    override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
+        super.init(style: .default, reuseIdentifier: reuseIdentifier)
+
+        backgroundColor = .clear
+        contentView.backgroundColor = .clear
+        selectionStyle = .none
+
+        monoLabel.numberOfLines = 0
+        monoLabel.font = .monospacedSystemFont(ofSize: 12, weight: .regular)
+        monoLabel.textColor = AdsDebugTheme.textSecondary
+        monoLabel.translatesAutoresizingMaskIntoConstraints = false
+        contentView.addSubview(monoLabel)
+
+        NSLayoutConstraint.activate([
+            monoLabel.topAnchor.constraint(equalTo: contentView.topAnchor, constant: 4),
+            monoLabel.bottomAnchor.constraint(equalTo: contentView.bottomAnchor, constant: -4),
+            monoLabel.leadingAnchor.constraint(equalTo: contentView.leadingAnchor, constant: AdsDebugTheme.cardHorizontalInset),
+            monoLabel.trailingAnchor.constraint(equalTo: contentView.trailingAnchor, constant: -AdsDebugTheme.cardHorizontalInset)
+        ])
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    override func prepareForReuse() {
+        super.prepareForReuse()
+        monoLabel.text = nil
+        monoLabel.textColor = AdsDebugTheme.textSecondary
+    }
+
+    func configure(text: String, color: UIColor = AdsDebugTheme.textSecondary) {
+        monoLabel.text = text
+        monoLabel.textColor = color
+    }
+}
+
 private final class AdsDebugSectionHeaderView: UIView {
     override init(frame: CGRect) {
         super.init(frame: frame)

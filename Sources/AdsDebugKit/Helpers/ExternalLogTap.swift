@@ -125,16 +125,13 @@ final class ExternalLogTap {
 
             let line = String(data: Data(lineBytes), encoding: .utf8) ?? String(decoding: lineBytes, as: UTF8.self)
 
-            if line.contains(adjustToken) {
-                if let r = line.range(of: "[Adjust]") {
-                    batch.append(String(line[r.lowerBound...]).trimmingCharacters(in: .whitespaces))
-                }
+            if let adjustLine = normalizedAdjustLine(line, token: adjustToken) {
+                batch.append(adjustLine)
             } else {
                 if line.contains(fbPurchaseToken) { isFBPurchasePending = true }
                 if line.contains(fbFlushResultToken) {
                     if isFBPurchasePending {
-                        let cleanMsg = line.trimmingCharacters(in: .whitespaces)
-                        batch.append("[FaceBook]: Purchase " + cleanMsg)
+                        batch.append(normalizedFacebookPurchaseFlushLine(line))
                     }
                     isFBPurchasePending = false
                 }
@@ -258,17 +255,17 @@ private final class OSLogAdjustPoller {
 
                 let msg = log.composedMessage
 
-                guard msg.contains(adjustToken) else { continue }
+                guard let line = normalizedAdjustLine(msg, token: adjustToken) else { continue }
 
                 // de-dup
-                let h = log.date.hashValue ^ msg.hashValue
+                let h = log.date.hashValue ^ line.hashValue
                 if processedHashes.contains(h) { continue }
                 processedHashes.insert(h)
                 if processedHashes.count > hashesCap {
                     processedHashes.removeAll(keepingCapacity: true)
                 }
 
-                batch.append("OSLog: \(msg.trimmingCharacters(in: .whitespaces))")
+                batch.append(line)
                 if batch.count >= maxBatch { break }
             }
 
@@ -286,4 +283,29 @@ private final class OSLogAdjustPoller {
                                 Date().addingTimeInterval(-initialBackfill))
         }
     }
+}
+
+private func normalizedAdjustLine(_ line: String, token: String) -> String? {
+    guard line.contains(token) else { return nil }
+    let message = line
+        .components(separatedBy: token)
+        .last?
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+    guard let message, !message.isEmpty else {
+        return "Adjust Response message"
+    }
+    return "Adjust Response message: \(message)"
+}
+
+private func normalizedFacebookPurchaseFlushLine(_ line: String) -> String {
+    let rawMessage = line
+        .replacingOccurrences(of: "Flush Result :", with: "")
+        .replacingOccurrences(of: "Flush Result:", with: "")
+        .trimmingCharacters(in: .whitespacesAndNewlines)
+    let status = rawMessage.range(of: "success", options: .caseInsensitive) == nil ? "failed" : "success"
+    let message = rawMessage
+        .replacingOccurrences(of: "\\s+", with: "_", options: .regularExpression)
+        .replacingOccurrences(of: "\"", with: "")
+        .prefix(180)
+    return "external_debug=1 provider=meta event=purchase status=\(status) message=\(message)"
 }

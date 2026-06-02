@@ -65,10 +65,13 @@ final class AdsDebugExternalLogsVC: UIViewController, UITableViewDataSource, UIT
             let time = DateFormatter.cached.string(from: item.time)
             var parts = item.values
                 .filter { !["external_debug", "provider", "event", "status", "message"].contains($0.key) }
-                .map { "\($0.key):\($0.value)" }
+                .map { "\($0.key)=\(Self.compactValue($0.value))" }
                 .sorted()
+            if parts.count > 6 {
+                parts = Array(parts.prefix(6)) + ["+\(parts.count - 6) more"]
+            }
             if let message = item.message, !message.isEmpty {
-                parts.insert(message, at: 0)
+                parts.insert(Self.compactValue(message), at: 0)
             }
             c.configure(
                 title: "[\(time)] \(item.provider) • \(item.event) • \(item.status.rawValue)",
@@ -85,21 +88,9 @@ final class AdsDebugExternalLogsVC: UIViewController, UITableViewDataSource, UIT
         guard rawIndex < linesArray.count else { return c }
         
         let line = linesArray[rawIndex]
-        let titleColor: UIColor?
-        if line.contains("[ViewAppear]") {
-            titleColor = AdsDebugTheme.loading
-        } else if line.contains("Ad revenue tracked") || line.contains("Flush Result : Success") {
-            titleColor = AdsDebugTheme.success
-        } else {
-            titleColor = nil
-        }
-        c.configure(
-            title: line,
-            titleColor: titleColor,
-            titleFont: .systemFont(ofSize: 11, weight: .regular)
-        )
-        
-        return c
+        let monoCell = AdsDebugMonoTableViewCell(style: .default, reuseIdentifier: nil)
+        monoCell.configure(text: line, color: Self.externalLineColor(line))
+        return monoCell
     }
     
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
@@ -121,5 +112,32 @@ final class AdsDebugExternalLogsVC: UIViewController, UITableViewDataSource, UIT
         AdToast.show("Copied log line")
         
         tableView.deselectRow(at: indexPath, animated: true)
+    }
+
+    private static func compactValue(_ value: String) -> String {
+        let trimmed = value.replacingOccurrences(of: "\\s+", with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmed.count > 140 else { return trimmed }
+        return String(trimmed.prefix(137)) + "..."
+    }
+
+    private static func externalLineColor(_ line: String) -> UIColor {
+        let lower = line.lowercased()
+        if lower.contains("status=success") ||
+            lower.contains("ad revenue tracked") ||
+            lower.contains("event tracked") ||
+            lower.contains("tracked") {
+            return AdsDebugTheme.success
+        }
+        if lower.contains("status=failed") ||
+            lower.contains("request failed") ||
+            lower.contains("failure") ||
+            lower.contains(" error") {
+            return AdsDebugTheme.failed
+        }
+        if lower.contains("status=submitted") || lower.contains("status=loading") {
+            return AdsDebugTheme.loading
+        }
+        return AdsDebugTheme.textSecondary
     }
 }
