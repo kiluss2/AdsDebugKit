@@ -406,7 +406,7 @@ final class AdsDebugBackgroundView: UIView {
         ])
 
         if let url = Bundle.module.url(forResource: "ads_debug_background", withExtension: "gif") {
-            AdsDebugTheme.style = UIImage.adsDebugFirstFrameLooksLight(url: url) ? .light : .dark
+            AdsDebugTheme.style = AdsDebugBackgroundStyleDetector.style(for: url)
             backgroundColor = AdsDebugTheme.background
             imageView.alpha = AdsDebugTheme.backgroundImageAlpha
             imageView.image = UIImage.adsDebugAnimatedGIF(url: url)
@@ -415,6 +415,20 @@ final class AdsDebugBackgroundView: UIView {
 
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+}
+
+private enum AdsDebugBackgroundStyleDetector {
+    private static var cachedStyle: (path: String, style: AdsDebugTheme.Style)?
+
+    static func style(for url: URL) -> AdsDebugTheme.Style {
+        if let cachedStyle, cachedStyle.path == url.path {
+            return cachedStyle.style
+        }
+
+        let style: AdsDebugTheme.Style = UIImage.adsDebugFirstFrameLooksLight(url: url) ? .light : .dark
+        cachedStyle = (url.path, style)
+        return style
     }
 }
 
