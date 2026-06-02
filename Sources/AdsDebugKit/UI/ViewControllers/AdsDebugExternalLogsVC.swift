@@ -124,12 +124,9 @@ final class AdsDebugExternalLogsVC: UIViewController, UITableViewDataSource, UIT
     private static func externalLineColor(_ line: String) -> UIColor {
         let lower = line.lowercased()
         if lower.contains("status=failed") ||
-            lower.contains("request failed") ||
             lower.contains("status_code_failure") ||
             lower.contains("result=server_error") ||
-            lower.contains("result=no_connectivity") ||
-            lower.contains("failure") ||
-            lower.contains(" error") {
+            lower.contains("result=no_connectivity") {
             return AdsDebugTheme.failed
         }
         if lower.contains("status=success") ||
