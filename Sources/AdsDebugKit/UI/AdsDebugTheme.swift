@@ -2,24 +2,161 @@ import UIKit
 import ImageIO
 
 enum AdsDebugTheme {
-    static let background = UIColor(red: 17 / 255, green: 24 / 255, blue: 39 / 255, alpha: 1)
-    static let card = UIColor(red: 31 / 255, green: 41 / 255, blue: 55 / 255, alpha: 0.75)
-    static let cardSolid = UIColor(red: 31 / 255, green: 41 / 255, blue: 55 / 255, alpha: 1)
-    static let textPrimary = UIColor(red: 249 / 255, green: 250 / 255, blue: 251 / 255, alpha: 1)
-    static let textSecondary = UIColor(red: 209 / 255, green: 213 / 255, blue: 219 / 255, alpha: 1)
-    static let textMuted = UIColor(red: 156 / 255, green: 163 / 255, blue: 175 / 255, alpha: 1)
-    static let success = UIColor(red: 22 / 255, green: 163 / 255, blue: 74 / 255, alpha: 1)
-    static let failed = UIColor(red: 225 / 255, green: 29 / 255, blue: 72 / 255, alpha: 1)
-    static let loading = UIColor(red: 245 / 255, green: 158 / 255, blue: 11 / 255, alpha: 1)
-    static let accent = UIColor(red: 37 / 255, green: 99 / 255, blue: 235 / 255, alpha: 1)
-    static let tabSelected = UIColor(red: 55 / 255, green: 69 / 255, blue: 90 / 255, alpha: 0.9)
-    static let switchOn = UIColor(red: 20 / 255, green: 83 / 255, blue: 45 / 255, alpha: 0.8)
-    static let buttonBackground = UIColor(red: 31 / 255, green: 41 / 255, blue: 55 / 255, alpha: 0.8)
-    static let modeButtonBackground = UIColor(red: 38 / 255, green: 50 / 255, blue: 63 / 255, alpha: 0.53)
-    static let modeButtonSelected = UIColor(red: 55 / 255, green: 65 / 255, blue: 81 / 255, alpha: 0.8)
-    static let border = UIColor.white.withAlphaComponent(0.09)
-    static let buttonBorder = UIColor(red: 124 / 255, green: 133 / 255, blue: 148 / 255, alpha: 0.5)
-    static let buttonBorderActive = UIColor(red: 209 / 255, green: 213 / 255, blue: 219 / 255, alpha: 0.8)
+    enum Style {
+        case dark
+        case light
+    }
+
+    static var style: Style = .dark
+
+    static var background: UIColor {
+        switch style {
+        case .dark: return UIColor(red: 17 / 255, green: 24 / 255, blue: 39 / 255, alpha: 1)
+        case .light: return UIColor(red: 248 / 255, green: 250 / 255, blue: 252 / 255, alpha: 1)
+        }
+    }
+
+    static var card: UIColor {
+        switch style {
+        case .dark: return UIColor(red: 31 / 255, green: 41 / 255, blue: 55 / 255, alpha: 0.78)
+        case .light: return UIColor.white.withAlphaComponent(0.80)
+        }
+    }
+
+    static var cardSolid: UIColor {
+        switch style {
+        case .dark: return UIColor(red: 31 / 255, green: 41 / 255, blue: 55 / 255, alpha: 1)
+        case .light: return UIColor.white
+        }
+    }
+
+    static var textPrimary: UIColor {
+        switch style {
+        case .dark: return UIColor(red: 249 / 255, green: 250 / 255, blue: 251 / 255, alpha: 1)
+        case .light: return UIColor(red: 15 / 255, green: 23 / 255, blue: 42 / 255, alpha: 1)
+        }
+    }
+
+    static var textSecondary: UIColor {
+        switch style {
+        case .dark: return UIColor(red: 209 / 255, green: 213 / 255, blue: 219 / 255, alpha: 1)
+        case .light: return UIColor(red: 51 / 255, green: 65 / 255, blue: 85 / 255, alpha: 1)
+        }
+    }
+
+    static var textMuted: UIColor {
+        switch style {
+        case .dark: return UIColor(red: 156 / 255, green: 163 / 255, blue: 175 / 255, alpha: 1)
+        case .light: return UIColor(red: 100 / 255, green: 116 / 255, blue: 139 / 255, alpha: 1)
+        }
+    }
+
+    static var success: UIColor {
+        switch style {
+        case .dark: return UIColor(red: 22 / 255, green: 163 / 255, blue: 74 / 255, alpha: 1)
+        case .light: return UIColor(red: 21 / 255, green: 128 / 255, blue: 61 / 255, alpha: 1)
+        }
+    }
+
+    static var failed: UIColor {
+        switch style {
+        case .dark: return UIColor(red: 225 / 255, green: 29 / 255, blue: 72 / 255, alpha: 1)
+        case .light: return UIColor(red: 190 / 255, green: 18 / 255, blue: 60 / 255, alpha: 1)
+        }
+    }
+
+    static var loading: UIColor {
+        switch style {
+        case .dark: return UIColor(red: 245 / 255, green: 158 / 255, blue: 11 / 255, alpha: 1)
+        case .light: return UIColor(red: 180 / 255, green: 83 / 255, blue: 9 / 255, alpha: 1)
+        }
+    }
+
+    static var accent: UIColor {
+        UIColor(red: 37 / 255, green: 99 / 255, blue: 235 / 255, alpha: 1)
+    }
+
+    static var tabSelected: UIColor {
+        switch style {
+        case .dark: return UIColor(red: 55 / 255, green: 69 / 255, blue: 90 / 255, alpha: 0.9)
+        case .light: return UIColor.white.withAlphaComponent(0.88)
+        }
+    }
+
+    static var switchOn: UIColor {
+        UIColor(red: 20 / 255, green: 83 / 255, blue: 45 / 255, alpha: 0.8)
+    }
+
+    static var buttonBackground: UIColor {
+        switch style {
+        case .dark: return UIColor(red: 31 / 255, green: 41 / 255, blue: 55 / 255, alpha: 0.8)
+        case .light: return UIColor.white.withAlphaComponent(0.72)
+        }
+    }
+
+    static var modeButtonBackground: UIColor {
+        switch style {
+        case .dark: return UIColor(red: 38 / 255, green: 50 / 255, blue: 63 / 255, alpha: 0.53)
+        case .light: return UIColor(red: 226 / 255, green: 232 / 255, blue: 240 / 255, alpha: 0.72)
+        }
+    }
+
+    static var modeButtonSelected: UIColor {
+        switch style {
+        case .dark: return UIColor(red: 55 / 255, green: 65 / 255, blue: 81 / 255, alpha: 0.8)
+        case .light: return UIColor.white.withAlphaComponent(0.9)
+        }
+    }
+
+    static var border: UIColor {
+        switch style {
+        case .dark: return UIColor.white.withAlphaComponent(0.09)
+        case .light: return UIColor.black.withAlphaComponent(0.08)
+        }
+    }
+
+    static var buttonBorder: UIColor {
+        switch style {
+        case .dark: return UIColor(red: 124 / 255, green: 133 / 255, blue: 148 / 255, alpha: 0.5)
+        case .light: return UIColor(red: 71 / 255, green: 85 / 255, blue: 105 / 255, alpha: 0.30)
+        }
+    }
+
+    static var buttonBorderActive: UIColor {
+        switch style {
+        case .dark: return UIColor(red: 209 / 255, green: 213 / 255, blue: 219 / 255, alpha: 0.8)
+        case .light: return UIColor(red: 15 / 255, green: 23 / 255, blue: 42 / 255, alpha: 0.45)
+        }
+    }
+
+    static var selectedControlText: UIColor {
+        switch style {
+        case .dark: return .white
+        case .light: return textPrimary
+        }
+    }
+
+    static var headerShadowColor: UIColor {
+        switch style {
+        case .dark: return .black
+        case .light: return .white
+        }
+    }
+
+    static var headerShadowOpacity: Float {
+        switch style {
+        case .dark: return 1
+        case .light: return 0.9
+        }
+    }
+
+    static var backgroundImageAlpha: CGFloat {
+        switch style {
+        case .dark: return 0.15
+        case .light: return 0.18
+        }
+    }
+
     static let cardCornerRadius: CGFloat = 12
     static let cardHorizontalInset: CGFloat = 16
     static let cardVerticalGap: CGFloat = 8
@@ -52,8 +189,8 @@ enum AdsDebugTheme {
         label.text = title
         label.textColor = textPrimary
         label.font = .systemFont(ofSize: 18, weight: .bold)
-        label.layer.shadowColor = UIColor.black.cgColor
-        label.layer.shadowOpacity = 1
+        label.layer.shadowColor = headerShadowColor.cgColor
+        label.layer.shadowOpacity = headerShadowOpacity
         label.layer.shadowRadius = 8
         label.layer.shadowOffset = CGSize(width: 0, height: 3)
         label.translatesAutoresizingMaskIntoConstraints = false
@@ -256,7 +393,7 @@ final class AdsDebugBackgroundView: UIView {
         isUserInteractionEnabled = false
 
         imageView.contentMode = .scaleAspectFill
-        imageView.alpha = 0.15
+        imageView.alpha = AdsDebugTheme.backgroundImageAlpha
         imageView.clipsToBounds = true
         imageView.translatesAutoresizingMaskIntoConstraints = false
         addSubview(imageView)
@@ -269,6 +406,9 @@ final class AdsDebugBackgroundView: UIView {
         ])
 
         if let url = Bundle.module.url(forResource: "ads_debug_background", withExtension: "gif") {
+            AdsDebugTheme.style = UIImage.adsDebugFirstFrameLooksLight(url: url) ? .light : .dark
+            backgroundColor = AdsDebugTheme.background
+            imageView.alpha = AdsDebugTheme.backgroundImageAlpha
             imageView.image = UIImage.adsDebugAnimatedGIF(url: url)
         }
     }
@@ -279,6 +419,41 @@ final class AdsDebugBackgroundView: UIView {
 }
 
 private extension UIImage {
+    static func adsDebugFirstFrameLooksLight(url: URL) -> Bool {
+        guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+              let cgImage = CGImageSourceCreateImageAtIndex(source, 0, nil) else {
+            return false
+        }
+        return adsDebugAverageLuminance(cgImage: cgImage) > 0.58
+    }
+
+    static func adsDebugAverageLuminance(cgImage: CGImage) -> CGFloat {
+        let width = 16
+        let height = 16
+        var pixels = [UInt8](repeating: 0, count: width * height * 4)
+        guard let context = CGContext(
+            data: &pixels,
+            width: width,
+            height: height,
+            bitsPerComponent: 8,
+            bytesPerRow: width * 4,
+            space: CGColorSpaceCreateDeviceRGB(),
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        ) else {
+            return 0
+        }
+        context.draw(cgImage, in: CGRect(x: 0, y: 0, width: width, height: height))
+
+        var total: CGFloat = 0
+        for index in stride(from: 0, to: pixels.count, by: 4) {
+            let r = CGFloat(pixels[index]) / 255
+            let g = CGFloat(pixels[index + 1]) / 255
+            let b = CGFloat(pixels[index + 2]) / 255
+            total += (0.299 * r) + (0.587 * g) + (0.114 * b)
+        }
+        return total / CGFloat(width * height)
+    }
+
     static func adsDebugAnimatedGIF(url: URL) -> UIImage? {
         guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else {
             return UIImage(contentsOfFile: url.path)

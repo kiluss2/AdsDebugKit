@@ -172,7 +172,7 @@ final class AdsDebugVC: UIViewController {
         for button in tabButtons {
             let isSelected = button.tag == selectedIndex
             button.backgroundColor = isSelected ? AdsDebugTheme.tabSelected : AdsDebugTheme.buttonBackground
-            button.setTitleColor(isSelected ? .white : AdsDebugTheme.textSecondary, for: .normal)
+            button.setTitleColor(isSelected ? AdsDebugTheme.selectedControlText : AdsDebugTheme.textSecondary, for: .normal)
             button.layer.borderColor = (isSelected ? AdsDebugTheme.buttonBorderActive : AdsDebugTheme.buttonBorder).cgColor
         }
     }

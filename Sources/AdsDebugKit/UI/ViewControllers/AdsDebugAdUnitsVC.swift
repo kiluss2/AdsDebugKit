@@ -170,7 +170,7 @@ private final class AdUnitModeCell: UITableViewCell {
             let mode = visibleModes[button.tag]
             let selected = mode == currentMode
             button.backgroundColor = selected ? AdsDebugTheme.modeButtonSelected : AdsDebugTheme.modeButtonBackground
-            button.setTitleColor(selected ? .white : AdsDebugTheme.textSecondary, for: .normal)
+            button.setTitleColor(selected ? AdsDebugTheme.selectedControlText : AdsDebugTheme.textSecondary, for: .normal)
             button.layer.borderColor = (selected ? mode.tintColor : AdsDebugTheme.buttonBorder).cgColor
         }
     }
