@@ -179,7 +179,7 @@ final class AdsDebugSettingsVC: UIViewController, UITableViewDataSource, UITable
         infoLabel.backgroundColor = AdsDebugTheme.card
         infoLabel.layer.cornerRadius = 14
         infoLabel.layer.borderWidth = 1
-        infoLabel.layer.borderColor = AdsDebugTheme.buttonBorder.cgColor
+        infoLabel.layer.borderColor = AdsDebugTheme.buttonBorderActive.cgColor
         infoLabel.layer.masksToBounds = true
         infoLabel.widthAnchor.constraint(equalToConstant: 28).isActive = true
         infoLabel.heightAnchor.constraint(equalToConstant: 28).isActive = true
@@ -200,7 +200,7 @@ final class AdsDebugSettingsVC: UIViewController, UITableViewDataSource, UITable
         cell.selectionStyle = .default
 
         let buttonView = UIView()
-        buttonView.backgroundColor = UIColor(red: 31 / 255, green: 41 / 255, blue: 55 / 255, alpha: 0.8)
+        buttonView.backgroundColor = AdsDebugTheme.buttonBackground
         buttonView.layer.cornerRadius = AdsDebugTheme.cardCornerRadius
         buttonView.layer.borderWidth = 1
         buttonView.layer.borderColor = AdsDebugTheme.buttonBorder.cgColor

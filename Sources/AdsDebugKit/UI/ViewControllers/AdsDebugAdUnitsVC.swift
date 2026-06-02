@@ -169,9 +169,24 @@ private final class AdUnitModeCell: UITableViewCell {
         for button in buttons {
             let mode = visibleModes[button.tag]
             let selected = mode == currentMode
-            button.backgroundColor = selected ? AdsDebugTheme.tabSelected : UIColor(red: 38 / 255, green: 50 / 255, blue: 63 / 255, alpha: 0.53)
+            button.backgroundColor = selected ? AdsDebugTheme.modeButtonSelected : AdsDebugTheme.modeButtonBackground
             button.setTitleColor(selected ? .white : AdsDebugTheme.textSecondary, for: .normal)
-            button.layer.borderColor = (selected ? AdsDebugTheme.buttonBorder : AdsDebugTheme.border).cgColor
+            button.layer.borderColor = (selected ? mode.tintColor : AdsDebugTheme.buttonBorder).cgColor
+        }
+    }
+}
+
+private extension AdUnitCustomMode {
+    var tintColor: UIColor {
+        switch self {
+        case .release:
+            return AdsDebugTheme.success
+        case .debug:
+            return AdsDebugTheme.loading
+        case .falseAd:
+            return AdsDebugTheme.failed
+        case .admobOnly:
+            return AdsDebugTheme.textSecondary
         }
     }
 }

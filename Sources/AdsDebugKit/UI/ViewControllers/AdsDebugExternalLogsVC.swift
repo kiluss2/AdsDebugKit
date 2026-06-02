@@ -126,11 +126,18 @@ final class AdsDebugExternalLogsVC: UIViewController, UITableViewDataSource, UIT
         if lower.contains("status=success") ||
             lower.contains("ad revenue tracked") ||
             lower.contains("event tracked") ||
-            lower.contains("tracked") {
+            lower.contains("tracked") ||
+            lower.contains("track") ||
+            lower.contains("success") ||
+            lower.contains("transaction_id") ||
+            lower.contains("failed=0") {
             return AdsDebugTheme.success
         }
         if lower.contains("status=failed") ||
             lower.contains("request failed") ||
+            lower.contains("status_code_failure") ||
+            lower.contains("result=server_error") ||
+            lower.contains("result=no_connectivity") ||
             lower.contains("failure") ||
             lower.contains(" error") {
             return AdsDebugTheme.failed

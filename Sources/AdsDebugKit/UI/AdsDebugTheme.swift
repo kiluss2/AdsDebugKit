@@ -14,8 +14,12 @@ enum AdsDebugTheme {
     static let accent = UIColor(red: 37 / 255, green: 99 / 255, blue: 235 / 255, alpha: 1)
     static let tabSelected = UIColor(red: 55 / 255, green: 69 / 255, blue: 90 / 255, alpha: 0.9)
     static let switchOn = UIColor(red: 20 / 255, green: 83 / 255, blue: 45 / 255, alpha: 0.8)
+    static let buttonBackground = UIColor(red: 31 / 255, green: 41 / 255, blue: 55 / 255, alpha: 0.8)
+    static let modeButtonBackground = UIColor(red: 38 / 255, green: 50 / 255, blue: 63 / 255, alpha: 0.53)
+    static let modeButtonSelected = UIColor(red: 55 / 255, green: 65 / 255, blue: 81 / 255, alpha: 0.8)
     static let border = UIColor.white.withAlphaComponent(0.09)
     static let buttonBorder = UIColor(red: 124 / 255, green: 133 / 255, blue: 148 / 255, alpha: 0.5)
+    static let buttonBorderActive = UIColor(red: 209 / 255, green: 213 / 255, blue: 219 / 255, alpha: 0.8)
     static let cardCornerRadius: CGFloat = 12
     static let cardHorizontalInset: CGFloat = 16
     static let cardVerticalGap: CGFloat = 8
