@@ -22,6 +22,7 @@ final class ExternalLogTap {
     private let mirrorToStderr = false
     private let maxRemainderBytes = 1 << 20
     private var isRunning = false
+    private var includesOSLog = false
 
     // Facebook tokens (giữ logic cũ)
     private let fbPurchaseToken = "fb_mobile_purchase"
@@ -31,22 +32,36 @@ final class ExternalLogTap {
     // MARK: - OSLog poller holder (must be Any? to avoid iOS<15 availability errors)
     private var osPollerAny: Any?
 
-    func start() {
-        guard !isRunning else { return }
+    func start(includeOSLog: Bool = false) {
+        guard !isRunning else {
+            if includeOSLog != includesOSLog {
+                includesOSLog = includeOSLog
+                if includeOSLog {
+                    if #available(iOS 15.0, *) {
+                        startOSLogPoller_iOS15()
+                    }
+                } else {
+                    stopOSLogPoller()
+                }
+            }
+            return
+        }
         isRunning = true
+        includesOSLog = includeOSLog
 
         startPipe()
 
-        if #available(iOS 15.0, *) {
+        if includeOSLog, #available(iOS 15.0, *) {
             startOSLogPoller_iOS15()
         }
 
-        AdTelemetry.shared.logDebugLine("Legacy raw log tap started")
+        AdTelemetry.shared.logDebugLine(includeOSLog ? "Legacy raw log tap started (oslog)" : "Legacy raw log tap started")
     }
 
     func stop() {
         guard isRunning else { return }
         isRunning = false
+        includesOSLog = false
         AdTelemetry.shared.logDebugLine("Legacy raw log tap stopped")
 
         // Stop pipe
@@ -55,10 +70,7 @@ final class ExternalLogTap {
         remainder.removeAll(keepingCapacity: false)
 
         // Stop OSLog poller
-        if #available(iOS 15.0, *) {
-            (osPollerAny as? OSLogAdjustPoller)?.stop()
-            osPollerAny = nil
-        }
+        stopOSLogPoller()
     }
 
     // MARK: - A. Pipe capture (Facebook / legacy print)
@@ -179,6 +191,13 @@ final class ExternalLogTap {
         )
         osPollerAny = poller
         poller.start()
+    }
+
+    private func stopOSLogPoller() {
+        if #available(iOS 15.0, *) {
+            (osPollerAny as? OSLogAdjustPoller)?.stop()
+            osPollerAny = nil
+        }
     }
 }
 

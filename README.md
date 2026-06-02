@@ -244,7 +244,9 @@ struct MyApp: App {
 
 ### Legacy raw log tap
 
-`ExternalLogTap` is legacy and disabled by default. Prefer typed callbacks and `logStructuredLine`. If an old app still needs filtered runtime log capture, opt in explicitly:
+`ExternalLogTap` is legacy and disabled by default. Prefer typed callbacks and `logStructuredLine`.
+`.legacyFiltered` captures filtered stdout/stderr-style logs only; it does not scan `OSLogStore`.
+If an old app still needs filtered runtime log capture, opt in explicitly:
 
 ```swift
 let config = AdTelemetryConfiguration(
@@ -254,6 +256,9 @@ let config = AdTelemetryConfiguration(
 AdTelemetry.initialize(config)
 AdTelemetry.shared.setRawLogTapEnabled(true)
 ```
+
+For short local debugging sessions that must inspect Adjust `OSLog` output, use `.legacyFilteredWithOSLog`.
+This mode polls `OSLogStore`, can be expensive on noisy devices, and should not be left enabled for normal QA or release builds.
 
 ## 📝 License
 

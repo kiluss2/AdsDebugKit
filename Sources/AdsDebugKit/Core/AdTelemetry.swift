@@ -229,7 +229,7 @@ public final class AdTelemetry {
         let enabled = settings.debugEnabled
         if enabled {
             if shouldRunLegacyRawLogTap {
-                ExternalLogTap.shared.start()
+                ExternalLogTap.shared.start(includeOSLog: legacyRawLogTapIncludesOSLog)
             } else {
                 ExternalLogTap.shared.stop()
             }
@@ -248,7 +248,17 @@ public final class AdTelemetry {
     }
 
     private var shouldRunLegacyRawLogTap: Bool {
-        return settings.rawLogTapEnabled && configuration?.rawLogTapPolicy == .legacyFiltered
+        guard settings.rawLogTapEnabled else { return false }
+        switch configuration?.rawLogTapPolicy {
+        case .legacyFiltered, .legacyFilteredWithOSLog:
+            return true
+        case .disabled, .none:
+            return false
+        }
+    }
+
+    private var legacyRawLogTapIncludesOSLog: Bool {
+        return configuration?.rawLogTapPolicy == .legacyFilteredWithOSLog
     }
 
     // MARK: - Public API: Event Logging

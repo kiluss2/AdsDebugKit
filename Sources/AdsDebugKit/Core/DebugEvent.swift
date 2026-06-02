@@ -113,6 +113,7 @@ public enum AdIdRequestRole: String, Codable, CaseIterable, Equatable {
 public enum AdRawLogTapPolicy: String, Codable, Equatable {
     case disabled
     case legacyFiltered
+    case legacyFilteredWithOSLog
 }
 
 public enum AdDebugExternalStatus: String, Codable, CaseIterable, Equatable {
