@@ -4,7 +4,7 @@
 import PackageDescription
 
 let package = Package(
-    name: "AdsDebugKit",
+    name: "iOSAdsDebugKit",
     platforms: [
         .iOS(.v13)
     ],
@@ -36,4 +36,3 @@ let package = Package(
         ),
     ]
 )
-

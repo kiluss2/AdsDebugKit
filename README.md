@@ -1,6 +1,6 @@
-# AdsDebugKit
+# iOSAdsDebugKit
 
-AdsDebugKit is an in-app debug panel for inspecting iOS ads, ad revenue, external tracking events, custom QA logs, and runtime ad unit overrides in debug or internal release builds.
+iOSAdsDebugKit is an in-app debug panel for inspecting iOS ads, ad revenue, external tracking events, custom QA logs, and runtime ad unit overrides in debug or internal release builds.
 
 It is designed for production QA flows where testers need to enable a hidden debug panel from inside the app, inspect real ad states, force ad-load failures, test AdMob-only fallback, and verify tracking SDK callbacks without rebuilding the app.
 
@@ -34,19 +34,21 @@ In Xcode:
 2. Paste the repository URL:
 
 ```text
-https://github.com/kiluss2/AdsDebugKit.git
+https://github.com/kiluss2/iOSAdsDebugKit.git
 ```
 
-3. Select the version, for example `2.0.0`.
-4. Add `AdsDebugKit` to your app target.
+3. Select the version, for example `2.0.1`.
+4. Add the `AdsDebugKit` product to your app target.
 
 In `Package.swift`:
 
 ```swift
 dependencies: [
-  .package(url: "https://github.com/kiluss2/AdsDebugKit.git", from: "2.0.0")
+  .package(url: "https://github.com/kiluss2/iOSAdsDebugKit.git", from: "2.0.1")
 ]
 ```
+
+The package is named `iOSAdsDebugKit` to distinguish it from `AndroidAdsDebugKit`. The Swift module and library product remain `AdsDebugKit`, so existing apps can keep using `import AdsDebugKit`.
 
 ## Quick Start
 
@@ -161,7 +163,7 @@ Supported actions include `loadStart`, `loadSuccess`, `loadFail`, `showStart`, `
 
 ### 6. Log Revenue
 
-For Google Mobile Ads, log revenue from `paidEventHandler`. AdsDebugKit does not import Google Mobile Ads, so the app owns the SDK integration.
+For Google Mobile Ads, log revenue from `paidEventHandler`. The `AdsDebugKit` module does not import Google Mobile Ads, so the app owns the SDK integration.
 
 ```swift
 AdTelemetry.shared.logRevenue(RevenueEvent(
@@ -226,7 +228,7 @@ enum AdsDebugBridge {
 
 ## Release Safety
 
-AdsDebugKit is safe to include in release builds when debug mode is disabled.
+iOSAdsDebugKit is safe to include in release builds when debug mode is disabled.
 
 When `debugEnabled = false`:
 
@@ -272,7 +274,7 @@ The debug mode uses Google's official iOS demo ad unit IDs:
 
 ## Structured Ads Logging
 
-AdsDebugKit can parse deterministic structured lines through API calls. Unlike Android, iOS does not globally hook Timber or logcat.
+iOSAdsDebugKit can parse deterministic structured lines through API calls. Unlike Android, iOS does not globally hook Timber or logcat.
 
 ```swift
 AdTelemetry.shared.logStructuredLine(
@@ -519,7 +521,7 @@ Recommended migration for full v2 behavior:
 Library checks:
 
 ```bash
-xcodebuild test -scheme AdsDebugKit -destination 'platform=iOS Simulator,name=iPhone 17'
+xcodebuild test -scheme iOSAdsDebugKit -destination 'platform=iOS Simulator,name=iPhone 17'
 ```
 
 Consumer app checks:
@@ -538,14 +540,14 @@ SPM releases are Git tags. Before publishing:
 4. Tag the verified commit.
 
 ```bash
-git tag -a v2.0.0 -m "Release v2.0.0"
-git push origin v2.0.0
-gh release create v2.0.0 \
-  --title "AdsDebugKit v2.0.0" \
-  --notes "AdsDebugKit iOS v2 release."
+git tag -a v2.0.1 -m "Release v2.0.1"
+git push origin v2.0.1
+gh release create v2.0.1 \
+  --title "iOSAdsDebugKit v2.0.1" \
+  --notes "iOSAdsDebugKit v2 release."
 ```
 
-Do not retag an existing version. If the library changes after `2.0.0`, bump the tag, for example to `2.0.1`.
+Do not retag an existing version. If the library changes after `2.0.1`, bump the tag, for example to `2.0.2`.
 
 ## License
 
