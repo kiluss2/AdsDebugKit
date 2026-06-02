@@ -11,7 +11,7 @@ final class ExternalLogTap {
     static let shared = ExternalLogTap()
     private init() {}
 
-    // ✅ KEEP EXACT TOKEN
+    // KEEP EXACT TOKEN
     private let adjustToken = "[Adjust]d: Got JSON response with message:"
 
     // MARK: - Pipe (stdout/stderr) - keep your existing behavior
@@ -127,7 +127,7 @@ final class ExternalLogTap {
 
             if line.contains(adjustToken) {
                 if let r = line.range(of: "[Adjust]") {
-                    batch.append(String(line[r.lowerBound...]))
+                    batch.append(String(line[r.lowerBound...]).trimmingCharacters(in: .whitespaces))
                 }
             } else {
                 if line.contains(fbPurchaseToken) { isFBPurchasePending = true }
@@ -252,7 +252,7 @@ private final class OSLogAdjustPoller {
                 if scanned > maxEntriesPerTick { break }
 
                 guard let log = entry as? OSLogEntryLog else { continue }
-                if log.date <= lastProcessed { continue }
+                if log.date < windowStart { continue }
 
                 if log.date > newestSeen { newestSeen = log.date }
 
@@ -268,7 +268,7 @@ private final class OSLogAdjustPoller {
                     processedHashes.removeAll(keepingCapacity: true)
                 }
 
-                batch.append("OSLog: \(msg)")
+                batch.append("OSLog: \(msg.trimmingCharacters(in: .whitespaces))")
                 if batch.count >= maxBatch { break }
             }
 
