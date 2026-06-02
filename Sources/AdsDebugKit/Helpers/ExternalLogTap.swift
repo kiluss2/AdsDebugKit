@@ -11,8 +11,8 @@ final class ExternalLogTap {
     static let shared = ExternalLogTap()
     private init() {}
 
-    // KEEP EXACT TOKEN
-    private let adjustToken = "[Adjust]d: Got JSON response with message:"
+    private let adjustMessageToken = "[Adjust]d: Got JSON response with message:"
+    private let adjustResponseToken = "[Adjust]v: Response:"
 
     // MARK: - Pipe (stdout/stderr) - keep your existing behavior
     private var src: DispatchSourceRead?
@@ -125,7 +125,11 @@ final class ExternalLogTap {
 
             let line = String(data: Data(lineBytes), encoding: .utf8) ?? String(decoding: lineBytes, as: UTF8.self)
 
-            if let adjustLine = normalizedAdjustLine(line, token: adjustToken) {
+            if let adjustLine = normalizedAdjustLine(
+                line,
+                messageToken: adjustMessageToken,
+                responseToken: adjustResponseToken
+            ) {
                 batch.append(adjustLine)
             } else {
                 if line.contains(fbPurchaseToken) { isFBPurchasePending = true }
@@ -157,7 +161,8 @@ final class ExternalLogTap {
         }
 
         let poller = OSLogAdjustPoller(
-            adjustToken: adjustToken,
+            adjustMessageToken: adjustMessageToken,
+            adjustResponseToken: adjustResponseToken,
             sink: { lines in
                 AdTelemetry.shared.logDebugLines(lines)
             }
@@ -171,7 +176,8 @@ final class ExternalLogTap {
 
 @available(iOS 15.0, *)
 private final class OSLogAdjustPoller {
-    private let adjustToken: String
+    private let adjustMessageToken: String
+    private let adjustResponseToken: String
     private let sink: ([String]) -> Void
 
     private let q = DispatchQueue(label: "external.log.tap.oslog", qos: .utility)
@@ -189,8 +195,9 @@ private final class OSLogAdjustPoller {
     private let maxBatch = 150
     private let hashesCap = 6000
 
-    init(adjustToken: String, sink: @escaping ([String]) -> Void) {
-        self.adjustToken = adjustToken
+    init(adjustMessageToken: String, adjustResponseToken: String, sink: @escaping ([String]) -> Void) {
+        self.adjustMessageToken = adjustMessageToken
+        self.adjustResponseToken = adjustResponseToken
         self.sink = sink
     }
 
@@ -255,7 +262,11 @@ private final class OSLogAdjustPoller {
 
                 let msg = log.composedMessage
 
-                guard let line = normalizedAdjustLine(msg, token: adjustToken) else { continue }
+                guard let line = normalizedAdjustLine(
+                    msg,
+                    messageToken: adjustMessageToken,
+                    responseToken: adjustResponseToken
+                ) else { continue }
 
                 // de-dup
                 let h = log.date.hashValue ^ line.hashValue
@@ -285,16 +296,44 @@ private final class OSLogAdjustPoller {
     }
 }
 
-private func normalizedAdjustLine(_ line: String, token: String) -> String? {
-    guard line.contains(token) else { return nil }
-    let message = line
-        .components(separatedBy: token)
+private func normalizedAdjustLine(_ line: String, messageToken: String, responseToken: String) -> String? {
+    if line.contains(messageToken) {
+        let message = line
+            .components(separatedBy: messageToken)
+            .last?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let message, !message.isEmpty else {
+            return "Adjust Response message"
+        }
+        return "Adjust Response message: \(message)"
+    }
+
+    guard line.contains(responseToken) else { return nil }
+    let response = line
+        .components(separatedBy: responseToken)
         .last?
         .trimmingCharacters(in: .whitespacesAndNewlines)
-    guard let message, !message.isEmpty else {
-        return "Adjust Response message"
+    guard let response, !response.isEmpty else {
+        return "Adjust Response"
     }
-    return "Adjust Response message: \(message)"
+    if let message = adjustJSONMessage(from: response), !message.isEmpty {
+        return "Adjust Response message: \(message)"
+    }
+    return "Adjust Response: \(response)"
+}
+
+private func adjustJSONMessage(from response: String) -> String? {
+    guard let start = response.firstIndex(of: "{"),
+          let end = response.lastIndex(of: "}"),
+          start <= end else {
+        return nil
+    }
+    let jsonText = String(response[start...end])
+    guard let data = jsonText.data(using: .utf8),
+          let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+        return nil
+    }
+    return object["message"].map { String(describing: $0) }
 }
 
 private func normalizedFacebookPurchaseFlushLine(_ line: String) -> String {
