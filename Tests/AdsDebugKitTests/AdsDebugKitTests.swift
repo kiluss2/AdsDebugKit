@@ -265,7 +265,7 @@ final class AdsDebugKitTests: XCTestCase {
         XCTAssertEqual(vc.children.count, 1)
     }
 
-    func testConsoleBackgroundLeavesStatusAreaTransparentLikeAndroid() {
+    func testConsoleBackgroundLeavesStatusAreaBlurredAndDimmedLikeAndroid() {
         let vc = AdsDebugVC()
         vc.loadViewIfNeeded()
 
@@ -281,6 +281,21 @@ final class AdsDebugKitTests: XCTestCase {
         }
 
         XCTAssertTrue(pinsBackgroundToSafeArea)
+
+        guard let statusBackdrop = vc.view.adsDebugFirstSubview(of: UIVisualEffectView.self) else {
+            return XCTFail("Expected status area blur backdrop")
+        }
+
+        let pinsBackdropToStatusArea = vc.view.constraints.contains { constraint in
+            constraint.firstItem as? UIView === statusBackdrop &&
+            constraint.firstAttribute == .bottom &&
+            constraint.secondItem as? UILayoutGuide === vc.view.safeAreaLayoutGuide &&
+            constraint.secondAttribute == .top
+        }
+
+        XCTAssertTrue(pinsBackdropToStatusArea)
+        XCTAssertNotNil(statusBackdrop.effect)
+        XCTAssertGreaterThan(statusBackdrop.contentView.subviews.first?.backgroundColor?.cgColor.alpha ?? 0, 0)
     }
 
     func testSettingsSwitchStaysInsideAndroidStyleRowLayout() {

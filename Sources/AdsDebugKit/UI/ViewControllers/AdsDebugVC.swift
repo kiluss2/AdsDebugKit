@@ -3,6 +3,7 @@ import UIKit
 final class AdsDebugVC: UIViewController {
     static let tabTitles = ["Ad States", "Ad Events", "Externals", "Custom", "Settings", "Ad Units"]
 
+    private let statusBackdropView = UIVisualEffectView(effect: UIBlurEffect(style: .systemUltraThinMaterialDark))
     private let backgroundView = AdsDebugBackgroundView()
     private let header = UIView()
     private let titleLabel = UILabel()
@@ -25,6 +26,7 @@ final class AdsDebugVC: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .clear
+        buildStatusBackdrop()
         buildBackground()
         buildHeader()
         buildTabs()
@@ -37,6 +39,29 @@ final class AdsDebugVC: UIViewController {
         if isBeingDismissed || navigationController?.isBeingDismissed == true {
             AdsDebugWindowManager.shared.hide()
         }
+    }
+
+    private func buildStatusBackdrop() {
+        statusBackdropView.isUserInteractionEnabled = false
+        statusBackdropView.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(statusBackdropView)
+
+        let dimView = UIView()
+        dimView.backgroundColor = UIColor.black.withAlphaComponent(0.42)
+        dimView.translatesAutoresizingMaskIntoConstraints = false
+        statusBackdropView.contentView.addSubview(dimView)
+
+        NSLayoutConstraint.activate([
+            statusBackdropView.topAnchor.constraint(equalTo: view.topAnchor),
+            statusBackdropView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            statusBackdropView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            statusBackdropView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+
+            dimView.topAnchor.constraint(equalTo: statusBackdropView.contentView.topAnchor),
+            dimView.bottomAnchor.constraint(equalTo: statusBackdropView.contentView.bottomAnchor),
+            dimView.leadingAnchor.constraint(equalTo: statusBackdropView.contentView.leadingAnchor),
+            dimView.trailingAnchor.constraint(equalTo: statusBackdropView.contentView.trailingAnchor)
+        ])
     }
 
     private func buildBackground() {
